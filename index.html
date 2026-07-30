@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="메뉴얼함"/>
+  <meta name="theme-color" content="#4a9eff"/>
+  <title>메뉴얼함 · 전자제품 설명서 보관</title>
+  <link rel="manifest" href="./manifest.json"/>
+  <link rel="apple-touch-icon" href="./icon-192.png"/>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+    :root{
+      --bg:#0b1120; --bg2:#0f172a; --bg3:#131d33; --card:#111a2e;
+      --border:#1e293b; --border2:#2a3a55;
+      --accent:#4a9eff; --accent2:#2f7fe0; --accent-soft:rgba(74,158,255,.14);
+      --text:#eef2f8; --text2:#c3cddd; --muted:#7c8aa5; --muted2:#516079;
+      --ok:#4ecb8d; --ok-bg:rgba(78,203,141,.13);
+      --warn:#f4b34a; --warn-bg:rgba(244,179,74,.14);
+      --danger:#f47272; --danger-bg:rgba(244,114,114,.14);
+      --sans:'Noto Sans KR',system-ui,-apple-system,sans-serif;
+      --radius:18px;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overscroll-behavior:none;-webkit-text-size-adjust:100%;}
+    body{font-size:15px;line-height:1.5;}
+    #app{min-height:100vh;padding-bottom:calc(96px + env(safe-area-inset-bottom,0px));}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+    input,select,textarea{font-family:inherit;-webkit-appearance:none;appearance:none;}
+    ::-webkit-scrollbar{width:0;height:0;}
+
+    /* Header */
+    .header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,var(--bg) 55%,rgba(11,17,32,.86));
+      backdrop-filter:blur(10px);padding:calc(env(safe-area-inset-top,0px) + 14px) 18px 10px;border-bottom:1px solid var(--border);}
+    .h-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+    .h-title{display:flex;align-items:center;gap:9px;font-size:20px;font-weight:900;letter-spacing:-.5px;}
+    .h-title .logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+      display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 3px 12px rgba(74,158,255,.4);}
+    .icon-btn{width:40px;height:40px;border-radius:12px;background:var(--bg3);border:1px solid var(--border);
+      display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--text2);transition:.15s;}
+    .icon-btn:active{transform:scale(.92);background:var(--border);}
+
+    /* Stats */
+    .stats{display:flex;gap:9px;margin-top:13px;}
+    .stat{flex:1;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:11px 12px;}
+    .stat .n{font-size:22px;font-weight:900;letter-spacing:-.5px;line-height:1;}
+    .stat .l{font-size:11.5px;color:var(--muted);margin-top:5px;font-weight:500;}
+    .stat.warn .n{color:var(--warn);} .stat.danger .n{color:var(--danger);} .stat.accent .n{color:var(--accent);}
+
+    /* Search */
+    .searchbar{margin-top:13px;position:relative;}
+    .searchbar input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:13px;
+      padding:12px 14px 12px 40px;color:var(--text);font-size:15px;}
+    .searchbar input:focus{outline:none;border-color:var(--accent);}
+    .searchbar .si{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;}
+    .searchbar .clr{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:30px;height:30px;border-radius:9px;
+      display:none;align-items:center;justify-content:center;color:var(--muted);font-size:16px;}
+
+    /* Chips */
+    .chips{display:flex;gap:8px;overflow-x:auto;padding:12px 18px 4px;scrollbar-width:none;}
+    .chips::-webkit-scrollbar{display:none;}
+    .chip{flex:0 0 auto;padding:8px 14px;border-radius:999px;background:var(--bg3);border:1px solid var(--border);
+      color:var(--text2);font-size:13.5px;font-weight:500;white-space:nowrap;transition:.15s;display:flex;align-items:center;gap:5px;}
+    .chip.on{background:var(--accent);border-color:var(--accent);color:#04122a;font-weight:700;}
+    .chip .cnt{font-size:11px;opacity:.75;}
+
+    /* List */
+    .list{padding:8px 16px 0;display:flex;flex-direction:column;gap:11px;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:13px;display:flex;gap:13px;
+      align-items:center;transition:.15s;position:relative;overflow:hidden;}
+    .card:active{transform:scale(.985);border-color:var(--border2);}
+    .thumb{width:62px;height:62px;flex:0 0 auto;border-radius:13px;background:var(--bg3);border:1px solid var(--border);
+      display:flex;align-items:center;justify-content:center;font-size:27px;overflow:hidden;position:relative;}
+    .thumb img{width:100%;height:100%;object-fit:cover;}
+    .card-body{flex:1;min-width:0;}
+    .card-body .nm{font-size:16px;font-weight:700;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .card-body .sub{font-size:12.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .card-meta{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center;}
+    .badge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:7px;display:inline-flex;align-items:center;gap:4px;}
+    .badge.cat{background:var(--accent-soft);color:var(--accent);}
+    .badge.doc{background:var(--bg3);color:var(--text2);border:1px solid var(--border);}
+    .badge.ok{background:var(--ok-bg);color:var(--ok);}
+    .badge.warn{background:var(--warn-bg);color:var(--warn);}
+    .badge.danger{background:var(--danger-bg);color:var(--danger);}
+
+    .empty{text-align:center;padding:70px 30px;color:var(--muted);}
+    .empty .em{font-size:52px;margin-bottom:14px;opacity:.55;}
+    .empty .t{font-size:16px;color:var(--text2);font-weight:600;margin-bottom:6px;}
+    .empty .d{font-size:13.5px;line-height:1.6;}
+
+    /* FAB */
+    .fab{position:fixed;right:20px;bottom:calc(22px + env(safe-area-inset-bottom,0px));z-index:30;
+      width:60px;height:60px;border-radius:20px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+      display:flex;align-items:center;justify-content:center;font-size:30px;color:#fff;font-weight:300;
+      box-shadow:0 8px 26px rgba(74,158,255,.5);transition:.15s;}
+    .fab:active{transform:scale(.9);}
+
+    /* Overlay + Sheet */
+    .overlay{position:fixed;inset:0;z-index:40;background:rgba(4,8,18,.72);backdrop-filter:blur(3px);
+      opacity:0;pointer-events:none;transition:.22s;}
+    .overlay.on{opacity:1;pointer-events:auto;}
+    .sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--bg2);border-radius:26px 26px 0 0;
+      border-top:1px solid var(--border2);max-height:92vh;display:flex;flex-direction:column;
+      transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1);
+      padding-bottom:env(safe-area-inset-bottom,0px);}
+    .sheet.on{transform:translateY(0);}
+    .grab{width:38px;height:4px;background:var(--border2);border-radius:99px;margin:10px auto 4px;flex:0 0 auto;}
+    .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:6px 20px 12px;flex:0 0 auto;}
+    .sheet-head .t{font-size:18px;font-weight:800;letter-spacing:-.4px;}
+    .sheet-body{overflow-y:auto;padding:0 20px 24px;-webkit-overflow-scrolling:touch;}
+
+    /* Form */
+    .field{margin-bottom:15px;}
+    .field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:7px;font-weight:600;}
+    .field input,.field select,.field textarea{width:100%;background:var(--bg3);border:1px solid var(--border);
+      border-radius:12px;padding:12px 13px;color:var(--text);font-size:15px;}
+    .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent);}
+    .field textarea{resize:none;min-height:70px;line-height:1.5;}
+    .field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%237c8aa5' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 14px center;padding-right:34px;}
+    .row2{display:flex;gap:11px;} .row2>*{flex:1;}
+    .hint{font-size:11.5px;color:var(--muted2);margin-top:6px;}
+
+    /* photo picker */
+    .photo-pick{width:100%;height:150px;border-radius:14px;border:1.5px dashed var(--border2);background:var(--bg3);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;color:var(--muted);overflow:hidden;position:relative;}
+    .photo-pick img{width:100%;height:100%;object-fit:cover;}
+    .photo-pick .rm{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:9px;background:rgba(4,8,18,.7);
+      display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;}
+
+    /* manual attach list */
+    .attach-add{width:100%;padding:13px;border-radius:12px;border:1.5px dashed var(--border2);background:var(--bg3);
+      color:var(--accent);font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:center;gap:7px;}
+    .att-item{display:flex;align-items:center;gap:11px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;
+      padding:10px 12px;margin-top:9px;}
+    .att-item .fi{width:38px;height:38px;flex:0 0 auto;border-radius:10px;display:flex;align-items:center;justify-content:center;
+      font-size:19px;background:var(--card);overflow:hidden;}
+    .att-item .fi img{width:100%;height:100%;object-fit:cover;}
+    .att-item .fn{flex:1;min-width:0;}
+    .att-item .fn .a{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .att-item .fn .b{font-size:11px;color:var(--muted);margin-top:1px;}
+    .att-item .x{width:30px;height:30px;flex:0 0 auto;border-radius:9px;background:var(--card);color:var(--muted);
+      display:flex;align-items:center;justify-content:center;font-size:15px;}
+
+    /* buttons */
+    .btn{width:100%;padding:15px;border-radius:14px;font-size:16px;font-weight:700;transition:.15s;}
+    .btn:active{transform:scale(.98);}
+    .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 5px 18px rgba(74,158,255,.35);}
+    .btn.ghost{background:var(--bg3);color:var(--text2);border:1px solid var(--border);}
+    .btn.danger{background:var(--danger-bg);color:var(--danger);border:1px solid rgba(244,114,114,.3);}
+    .btn:disabled{opacity:.5;pointer-events:none;}
+    .sheet-foot{padding:14px 20px calc(18px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border);
+      background:var(--bg2);display:flex;gap:11px;flex:0 0 auto;}
+
+    /* detail */
+    .d-hero{border-radius:16px;overflow:hidden;background:var(--bg3);border:1px solid var(--border);margin-bottom:16px;
+      height:200px;display:flex;align-items:center;justify-content:center;font-size:64px;}
+    .d-hero img{width:100%;height:100%;object-fit:cover;}
+    .d-name{font-size:22px;font-weight:900;letter-spacing:-.6px;line-height:1.25;}
+    .d-brand{font-size:14px;color:var(--muted);margin-top:3px;}
+    .warranty-box{margin:16px 0;padding:14px 15px;border-radius:14px;display:flex;align-items:center;gap:12px;}
+    .warranty-box .wi{font-size:26px;}
+    .warranty-box .wt{flex:1;} .warranty-box .wt .a{font-size:15px;font-weight:700;} .warranty-box .wt .b{font-size:12px;margin-top:2px;opacity:.85;}
+    .warranty-box.ok{background:var(--ok-bg);color:var(--ok);}
+    .warranty-box.warn{background:var(--warn-bg);color:var(--warn);}
+    .warranty-box.danger{background:var(--danger-bg);color:var(--danger);}
+    .warranty-box.none{background:var(--bg3);color:var(--muted);}
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);
+      border-radius:14px;overflow:hidden;margin-bottom:16px;}
+    .info-grid .cell{background:var(--bg2);padding:12px 13px;}
+    .info-grid .cell.full{grid-column:1/3;}
+    .info-grid .cell .k{font-size:11.5px;color:var(--muted);font-weight:600;}
+    .info-grid .cell .v{font-size:14.5px;color:var(--text);margin-top:4px;font-weight:500;word-break:break-word;white-space:pre-wrap;}
+    .sec-title{font-size:13px;font-weight:700;color:var(--text2);margin:4px 0 10px;display:flex;align-items:center;gap:7px;}
+    .sec-title .c{font-size:11px;color:var(--muted);font-weight:600;background:var(--bg3);padding:2px 8px;border-radius:99px;}
+    .doc-item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:13px;
+      padding:11px 13px;margin-bottom:9px;transition:.15s;}
+    .doc-item:active{transform:scale(.985);background:var(--bg3);}
+    .doc-item .di{width:44px;height:44px;flex:0 0 auto;border-radius:11px;display:flex;align-items:center;justify-content:center;
+      font-size:21px;overflow:hidden;}
+    .doc-item .di.pdf{background:var(--danger-bg);color:var(--danger);}
+    .doc-item .di.img{background:var(--accent-soft);color:var(--accent);overflow:hidden;}
+    .doc-item .di.img img{width:100%;height:100%;object-fit:cover;}
+    .doc-item .di.etc{background:var(--bg3);color:var(--text2);}
+    .doc-item .dn{flex:1;min-width:0;} .doc-item .dn .a{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .doc-item .dn .b{font-size:11.5px;color:var(--muted);margin-top:2px;}
+    .doc-item .go{color:var(--muted);font-size:16px;}
+
+    /* action sheet */
+    .as{position:fixed;left:0;right:0;bottom:0;z-index:55;padding:0 12px calc(12px + env(safe-area-inset-bottom,0px));
+      transform:translateY(120%);transition:transform .26s cubic-bezier(.32,.72,0,1);}
+    .as.on{transform:translateY(0);}
+    .as-group{background:var(--bg2);border-radius:16px;overflow:hidden;border:1px solid var(--border2);}
+    .as-item{padding:16px;text-align:center;font-size:16px;font-weight:600;border-bottom:1px solid var(--border);color:var(--text);}
+    .as-item:last-child{border-bottom:none;}
+    .as-item.danger{color:var(--danger);}
+    .as-cancel{margin-top:9px;background:var(--bg3);border-radius:16px;padding:16px;text-align:center;font-size:16px;font-weight:700;border:1px solid var(--border2);}
+
+    /* lightbox / pdf viewer */
+    .viewer{position:fixed;inset:0;z-index:70;background:#05070e;display:none;flex-direction:column;}
+    .viewer.on{display:flex;}
+    .viewer-top{display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;
+      color:#fff;gap:12px;background:rgba(0,0,0,.35);}
+    .viewer-top .vn{font-size:14px;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .viewer-top .vb{width:40px;height:40px;border-radius:11px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:19px;color:#fff;}
+    .viewer-stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:pan-y;}
+    .viewer-stage img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none;}
+    .viewer-stage iframe{width:100%;height:100%;border:none;background:#fff;}
+    .viewer-nav{position:absolute;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;
+      background:rgba(255,255,255,.14);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;}
+    .viewer-nav.prev{left:12px;} .viewer-nav.next{right:12px;}
+    .viewer-count{position:absolute;bottom:calc(18px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);
+      background:rgba(0,0,0,.5);color:#fff;font-size:13px;padding:6px 14px;border-radius:99px;}
+
+    /* toast */
+    .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);
+      z-index:90;background:#1c283f;border:1px solid var(--border2);color:var(--text);padding:12px 20px;border-radius:13px;
+      font-size:14px;font-weight:600;opacity:0;transition:.25s;box-shadow:0 8px 24px rgba(0,0,0,.4);white-space:nowrap;max-width:90vw;}
+    .toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+
+    /* settings rows */
+    .set-sec{margin-bottom:22px;}
+    .set-sec .h{font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:9px;text-transform:uppercase;letter-spacing:.4px;}
+    .set-row{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:14px;margin-bottom:9px;}
+    .set-row .rt{font-size:15px;font-weight:600;}
+    .set-row .rd{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5;}
+    .sync-status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:99px;margin-top:8px;}
+    .sync-status.on{background:var(--ok-bg);color:var(--ok);}
+    .sync-status.off{background:var(--bg3);color:var(--muted);}
+    .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+    code.ck{font-family:monospace;background:var(--bg);padding:2px 7px;border-radius:6px;color:var(--accent);font-size:12px;word-break:break-all;}
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="h-top">
+      <div class="h-title"><span class="logo">📖</span> 메뉴얼함</div>
+      <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
+    </div>
+    <div class="stats">
+      <div class="stat accent"><div class="n" id="stTotal">0</div><div class="l">보관 제품</div></div>
+      <div class="stat"><div class="n" id="stDocs">0</div><div class="l">설명서 파일</div></div>
+      <div class="stat warn"><div class="n" id="stWarranty">0</div><div class="l">보증 만료임박</div></div>
+    </div>
+    <div class="searchbar">
+      <span class="si">🔍</span>
+      <input id="searchInput" type="search" placeholder="제품명·브랜드·모델 검색" autocomplete="off"/>
+      <button class="clr" id="searchClear">✕</button>
+    </div>
+  </div>
+
+  <div class="chips" id="chips"></div>
+  <div class="list" id="list"></div>
+</div>
+
+<button class="fab" id="fab" aria-label="제품 추가">+</button>
+
+<!-- overlay -->
+<div class="overlay" id="overlay"></div>
+
+<!-- Add/Edit sheet -->
+<div class="sheet" id="formSheet">
+  <div class="grab"></div>
+  <div class="sheet-head"><div class="t" id="formTitle">제품 추가</div>
+    <button class="icon-btn" id="formClose">✕</button></div>
+  <div class="sheet-body" id="formBody"></div>
+  <div class="sheet-foot">
+    <button class="btn ghost" id="formCancel" style="flex:0 0 34%">취소</button>
+    <button class="btn primary" id="formSave">저장</button>
+  </div>
+</div>
+
+<!-- Detail sheet -->
+<div class="sheet" id="detailSheet">
+  <div class="grab"></div>
+  <div class="sheet-head"><div class="t">제품 정보</div>
+    <div style="display:flex;gap:8px">
+      <button class="icon-btn" id="detailMenu">⋯</button>
+      <button class="icon-btn" id="detailClose">✕</button>
+    </div>
+  </div>
+  <div class="sheet-body" id="detailBody"></div>
+</div>
+
+<!-- Settings sheet -->
+<div class="sheet" id="settingsSheet">
+  <div class="grab"></div>
+  <div class="sheet-head"><div class="t">설정</div>
+    <button class="icon-btn" id="settingsClose">✕</button></div>
+  <div class="sheet-body" id="settingsBody"></div>
+</div>
+
+<!-- Action sheet -->
+<div class="as" id="actionSheet">
+  <div class="as-group" id="actionGroup"></div>
+  <div class="as-cancel" id="actionCancel">취소</div>
+</div>
+
+<!-- Viewer -->
+<div class="viewer" id="viewer">
+  <div class="viewer-top">
+    <button class="vb" id="viewerBack">✕</button>
+    <div class="vn" id="viewerName"></div>
+    <button class="vb" id="viewerOpen" title="새 탭에서 열기">↗</button>
+  </div>
+  <div class="viewer-stage" id="viewerStage"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<input type="file" id="filePhoto" accept="image/*" style="display:none"/>
+<input type="file" id="fileManual" accept="application/pdf,image/*" multiple style="display:none"/>
+<input type="file" id="fileImport" accept="application/json,.json" style="display:none"/>
+
+<script>
+/* ============================================================
+   메뉴얼함 — 전자제품 설명서 보관 PWA (단일 파일)
+   ============================================================ */
+
+/* ---------- 카테고리 ---------- */
+const CATS = [
+  {k:'tv',      n:'TV·모니터',    e:'📺'},
+  {k:'fridge',  n:'냉장고',       e:'🧊'},
+  {k:'laundry', n:'세탁·건조',    e:'🫧'},
+  {k:'clean',   n:'청소기',       e:'🧹'},
+  {k:'air',     n:'에어컨·공조',  e:'❄️'},
+  {k:'kitchen', n:'주방가전',     e:'🍳'},
+  {k:'pc',      n:'노트북·PC',    e:'💻'},
+  {k:'mobile',  n:'폰·태블릿',    e:'📱'},
+  {k:'audio',   n:'오디오·이어폰',e:'🎧'},
+  {k:'camera',  n:'카메라',       e:'📷'},
+  {k:'game',    n:'게임기',       e:'🎮'},
+  {k:'etc',     n:'기타',         e:'🔌'},
+];
+const catOf = k => CATS.find(c=>c.k===k) || CATS[CATS.length-1];
+
+/* ---------- 상태 ---------- */
+const LS_KEY = 'manualbox.products.v1';
+const LS_SYNC = 'manualbox.synccode.v1';
+let state = { products: [] };
+let filter = { cat:'all', q:'' };
+let editingId = null;      // 폼에서 편집 중인 제품 id (신규면 null)
+let formDraft = null;      // 폼 임시 데이터
+let detailId = null;       // 상세 표시 중 제품 id
+
+function nowMs(){ return Date.now(); }
+function uid(){ return 'p_' + Math.random().toString(36).slice(2,10) + Math.random().toString(36).slice(2,6); }
+
+function loadState(){
+  try{ const r = localStorage.getItem(LS_KEY); if(r) state.products = JSON.parse(r)||[]; }catch{ state.products=[]; }
+}
+function saveState(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(state.products)); }catch(e){ toast('저장 공간이 부족합니다'); }
+  scheduleSyncPush();
+}
+function liveProducts(){ return state.products.filter(p=>!p.deleted); }
+
+/* ============================================================
+   IndexedDB — 파일(PDF·이미지) blob 저장
+   ============================================================ */
+let _db = null;
+function idb(){
+  if(_db) return Promise.resolve(_db);
+  return new Promise((res,rej)=>{
+    const req = indexedDB.open('manualbox', 1);
+    req.onupgradeneeded = () => { const db=req.result; if(!db.objectStoreNames.contains('files')) db.createObjectStore('files'); };
+    req.onsuccess = () => { _db = req.result; res(_db); };
+    req.onerror = () => rej(req.error);
+  });
+}
+async function idbPut(id, rec){ const db=await idb(); return new Promise((res,rej)=>{ const t=db.transaction('files','readwrite'); t.objectStore('files').put(rec,id); t.oncomplete=res; t.onerror=()=>rej(t.error); }); }
+async function idbGet(id){ const db=await idb(); return new Promise((res,rej)=>{ const t=db.transaction('files','readonly'); const r=t.objectStore('files').get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function idbDel(id){ const db=await idb(); return new Promise((res)=>{ const t=db.transaction('files','readwrite'); t.objectStore('files').delete(id); t.oncomplete=res; t.onerror=res; }); }
+
+/* objectURL 메모리 캐시 */
+const urlCache = new Map();
+async function fileURL(id){
+  if(!id) return null;
+  if(urlCache.has(id)) return urlCache.get(id);
+  try{
+    const rec = await idbGet(id);
+    if(!rec || !rec.blob){ await ensureRemoteFile(id); const r2=await idbGet(id); if(!r2||!r2.blob) return null; const u=URL.createObjectURL(r2.blob); urlCache.set(id,u); return u; }
+    const u = URL.createObjectURL(rec.blob); urlCache.set(id,u); return u;
+  }catch{ return null; }
+}
+
+/* ============================================================
+   이미지 압축 (사진·이미지 설명서)
+   ============================================================ */
+async function compressImage(file, maxDim=1280, targetBytes=520*1024){
+  try{
+    const bmp = await createImageBitmap(file, {imageOrientation:'from-image'});
+    let {width:w, height:h} = bmp;
+    const scale = Math.min(1, maxDim/Math.max(w,h));
+    w = Math.round(w*scale); h = Math.round(h*scale);
+    const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
+    cv.getContext('2d').drawImage(bmp,0,0,w,h); bmp.close && bmp.close();
+    let q=0.85, blob=await canvasBlob(cv,q);
+    while(blob && blob.size>targetBytes && q>0.4){ q-=0.12; blob=await canvasBlob(cv,q); }
+    if(blob && blob.size < file.size) return blob;
+    return file;
+  }catch{ return file; }
+}
+function canvasBlob(cv,q){ return new Promise(r=>cv.toBlob(r,'image/jpeg',q)); }
+
+/* ============================================================
+   보증 계산
+   ============================================================ */
+function warrantyInfo(p){
+  if(!p.purchaseDate || !p.warrantyMonths) return {state:'none', label:'보증 정보 없음', desc:'구매일·보증기간을 입력하면 만료일을 계산합니다'};
+  const start = new Date(p.purchaseDate+'T00:00:00');
+  if(isNaN(start)) return {state:'none', label:'보증 정보 없음', desc:''};
+  const exp = new Date(start); exp.setMonth(exp.getMonth()+Number(p.warrantyMonths));
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days = Math.round((exp - today)/86400000);
+  const ds = exp.toISOString().slice(0,10);
+  if(days < 0) return {state:'danger', label:'보증 만료', desc:`${ds} 만료 (${-days}일 지남)`, days};
+  if(days <= 30) return {state:'warn', label:`보증 만료 D-${days}`, desc:`${ds} 만료`, days};
+  const months = Math.floor(days/30);
+  return {state:'ok', label:'보증 유효', desc:`${ds}까지 · 약 ${months>0?months+'개월':days+'일'} 남음`, days};
+}
+
+/* ============================================================
+   렌더링
+   ============================================================ */
+const $ = s => document.querySelector(s);
+
+function renderChips(){
+  const wrap = $('#chips');
+  const counts = {}; liveProducts().forEach(p=>{ counts[p.category]=(counts[p.category]||0)+1; });
+  const total = liveProducts().length;
+  let html = `<button class="chip ${filter.cat==='all'?'on':''}" data-cat="all">전체 <span class="cnt">${total}</span></button>`;
+  CATS.forEach(c=>{ const n=counts[c.k]||0; if(n===0 && filter.cat!==c.k) return;
+    html += `<button class="chip ${filter.cat===c.k?'on':''}" data-cat="${c.k}">${c.e} ${c.n} <span class="cnt">${n}</span></button>`; });
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('.chip').forEach(ch=>ch.onclick=()=>{ filter.cat=ch.dataset.cat; render(); });
+}
+
+function renderStats(){
+  const list = liveProducts();
+  $('#stTotal').textContent = list.length;
+  $('#stDocs').textContent = list.reduce((s,p)=>s+(p.manuals?p.manuals.length:0),0);
+  const warn = list.filter(p=>{ const w=warrantyInfo(p); return w.state==='warn'||w.state==='danger'; }).length;
+  $('#stWarranty').textContent = warn;
+}
+
+function matchFilter(p){
+  if(filter.cat!=='all' && p.category!==filter.cat) return false;
+  if(filter.q){ const q=filter.q.toLowerCase();
+    const hay = [p.name,p.brand,p.model,p.store,p.memo].filter(Boolean).join(' ').toLowerCase();
+    if(!hay.includes(q)) return false; }
+  return true;
+}
+
+function render(){
+  renderStats(); renderChips();
+  const list = $('#list');
+  let items = liveProducts().filter(matchFilter);
+  items.sort((a,b)=>(b.updated||0)-(a.updated||0));
+  if(items.length===0){
+    const first = liveProducts().length===0;
+    list.innerHTML = `<div class="empty"><div class="em">${first?'📦':'🔍'}</div>
+      <div class="t">${first?'아직 등록한 제품이 없어요':'검색 결과가 없어요'}</div>
+      <div class="d">${first?'오른쪽 아래 <b>+</b> 버튼을 눌러<br>전자제품과 설명서를 등록해 보세요':'다른 검색어나 카테고리를 선택해 보세요'}</div></div>`;
+    return;
+  }
+  list.innerHTML = items.map(p=>{
+    const c = catOf(p.category); const w = warrantyInfo(p);
+    const nDoc = p.manuals?p.manuals.length:0;
+    const wb = w.state==='ok'?`<span class="badge ok">🛡 보증</span>`
+             : w.state==='warn'?`<span class="badge warn">⏳ D-${w.days}</span>`
+             : w.state==='danger'?`<span class="badge danger">만료</span>`:'';
+    return `<div class="card" data-id="${p.id}">
+      <div class="thumb" data-thumb="${p.photoFileId||''}">${p.photoFileId?'':c.e}</div>
+      <div class="card-body">
+        <div class="nm">${esc(p.name||'(이름 없음)')}</div>
+        <div class="sub">${esc([p.brand,p.model].filter(Boolean).join(' · ')||'—')}</div>
+        <div class="card-meta">
+          <span class="badge cat">${c.e} ${c.n}</span>
+          ${nDoc?`<span class="badge doc">📄 ${nDoc}</span>`:''}
+          ${wb}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.card').forEach(el=>el.onclick=()=>openDetail(el.dataset.id));
+  lazyThumbs();
+}
+
+/* 썸네일 지연 로딩 */
+let thumbObserver = null;
+function lazyThumbs(){
+  if(thumbObserver) thumbObserver.disconnect();
+  thumbObserver = new IntersectionObserver((entries)=>{
+    entries.forEach(async e=>{
+      if(!e.isIntersecting) return;
+      const el = e.target; thumbObserver.unobserve(el);
+      const id = el.dataset.thumb; if(!id) return;
+      const u = await fileURL(id); if(u){ el.innerHTML = `<img src="${u}" alt=""/>`; }
+    });
+  }, {rootMargin:'120px'});
+  document.querySelectorAll('.thumb[data-thumb]').forEach(el=>{ if(el.dataset.thumb) thumbObserver.observe(el); });
+}
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtSize(b){ if(!b) return ''; if(b<1024) return b+'B'; if(b<1048576) return (b/1024).toFixed(0)+'KB'; return (b/1048576).toFixed(1)+'MB'; }
+
+/* ============================================================
+   뒤로가기 레이어 스택 (홈에서만 종료)
+   ============================================================ */
+const uiStack = [];
+const LAYERS = {
+  form:      {el:'#formSheet',     open:showSheet, close:hideSheet, needsOverlay:true},
+  detail:    {el:'#detailSheet',   open:showSheet, close:hideSheet, needsOverlay:true},
+  settings:  {el:'#settingsSheet', open:showSheet, close:hideSheet, needsOverlay:true},
+  action:    {el:'#actionSheet',   open:showAction, close:hideAction, needsOverlay:true},
+  viewer:    {el:'#viewer',        open:showViewer, close:hideViewer, needsOverlay:false},
+};
+function showSheet(el){ $(el).classList.add('on'); }
+function hideSheet(el){ $(el).classList.remove('on'); }
+function showAction(el){ $(el).classList.add('on'); }
+function hideAction(el){ $(el).classList.remove('on'); }
+function showViewer(el){ $(el).classList.add('on'); }
+function hideViewer(el){ $(el).classList.remove('on'); }
+
+function syncOverlay(){
+  const anyOverlay = uiStack.some(l=>LAYERS[l.tag] && LAYERS[l.tag].needsOverlay);
+  $('#overlay').classList.toggle('on', anyOverlay);
+}
+function pushHist(tag){ try{ history.pushState({t:tag,ts:performance.now()},''); return true; }catch{ return false; } }
+function openLayer(tag, prep){ if(prep) prep(); LAYERS[tag].open(LAYERS[tag].el); uiStack.push({tag, pushed:pushHist(tag)}); syncOverlay(); }
+function swapLayer(tag, prep){
+  const top = uiStack[uiStack.length-1];
+  if(top){ LAYERS[top.tag].close(LAYERS[top.tag].el); }
+  if(prep) prep();
+  LAYERS[tag].open(LAYERS[tag].el);
+  if(top) top.tag=tag; else openLayer(tag);
+  syncOverlay();
+}
+function uiBack(){
+  const top = uiStack[uiStack.length-1]; if(!top) return;
+  if(top.pushed) history.back();
+  else { uiStack.pop(); LAYERS[top.tag].close(LAYERS[top.tag].el); syncOverlay(); afterClose(top.tag); }
+}
+window.addEventListener('popstate', ()=>{
+  if(!uiStack.length) return;
+  const top = uiStack.pop(); LAYERS[top.tag].close(LAYERS[top.tag].el); syncOverlay(); afterClose(top.tag);
+});
+function afterClose(tag){ if(tag==='viewer') clearViewer(); }
+
+/* ============================================================
+   폼 (추가/수정)
+   ============================================================ */
+function blankDraft(){ return {name:'',brand:'',category:'tv',model:'',purchaseDate:'',warrantyMonths:'',store:'',memo:'',
+  photoFileId:null, _photoBlob:null, _photoRemoved:false, manuals:[], _newFiles:[]}; }
+
+function openForm(id){
+  editingId = id || null;
+  if(id){ const p = state.products.find(x=>x.id===id);
+    formDraft = {...blankDraft(), ...JSON.parse(JSON.stringify({
+      name:p.name,brand:p.brand,category:p.category,model:p.model,purchaseDate:p.purchaseDate||'',
+      warrantyMonths:p.warrantyMonths||'',store:p.store||'',memo:p.memo||'',
+      photoFileId:p.photoFileId||null, manuals:(p.manuals||[]).map(m=>({...m}))
+    }))};
+    formDraft._photoBlob=null; formDraft._photoRemoved=false; formDraft._newFiles=[];
+    $('#formTitle').textContent='제품 수정';
+  } else { formDraft = blankDraft(); $('#formTitle').textContent='제품 추가'; }
+  renderForm();
+  openLayer('form');
+}
+function renderForm(){
+  const d = formDraft;
+  const catOpts = CATS.map(c=>`<option value="${c.k}" ${d.category===c.k?'selected':''}>${c.e} ${c.n}</option>`).join('');
+  const photoHtml = (d._photoBlob || (d.photoFileId && !d._photoRemoved))
+    ? `<img id="photoPreview" alt=""/><button class="rm" id="photoRemove">✕</button>`
+    : `<div style="font-size:30px">📷</div><div style="font-size:13px">제품 사진 추가 (선택)</div>`;
+  $('#formBody').innerHTML = `
+    <div class="field"><label>제품 사진</label>
+      <div class="photo-pick" id="photoPick">${photoHtml}</div></div>
+    <div class="field"><label>제품명 *</label>
+      <input id="f_name" value="${esc(d.name)}" placeholder="예: 삼성 비스포크 냉장고" maxlength="60"/></div>
+    <div class="row2">
+      <div class="field"><label>브랜드·제조사</label>
+        <input id="f_brand" value="${esc(d.brand)}" placeholder="예: 삼성" maxlength="40"/></div>
+      <div class="field"><label>카테고리 *</label>
+        <select id="f_category">${catOpts}</select></div>
+    </div>
+    <div class="field"><label>모델명</label>
+      <input id="f_model" value="${esc(d.model)}" placeholder="예: RF85C90" maxlength="60"/></div>
+    <div class="row2">
+      <div class="field"><label>구매일</label>
+        <input id="f_purchaseDate" type="date" value="${esc(d.purchaseDate)}"/></div>
+      <div class="field"><label>보증기간 (개월)</label>
+        <input id="f_warrantyMonths" type="number" inputmode="numeric" min="0" max="600" value="${esc(d.warrantyMonths)}" placeholder="예: 24"/></div>
+    </div>
+    <div class="field"><label>구매처</label>
+      <input id="f_store" value="${esc(d.store)}" placeholder="예: 쿠팡 / 하이마트" maxlength="60"/></div>
+    <div class="field"><label>메모</label>
+      <textarea id="f_memo" placeholder="시리얼 번호, A/S 연락처, 소모품 규격 등" maxlength="1000">${esc(d.memo)}</textarea></div>
+    <div class="field"><label>설명서 파일 (PDF·사진)</label>
+      <div id="attachList"></div>
+      <button class="attach-add" id="attachAdd" style="margin-top:9px">＋ 설명서 파일 추가</button>
+      <div class="hint">PDF 사용설명서나 보증서 사진을 첨부하세요. 여러 개 추가할 수 있어요.</div>
+    </div>`;
+  bindFormFields();
+  renderAttachList();
+  refreshPhotoPreview();
+}
+function bindFormFields(){
+  const map = {f_name:'name',f_brand:'brand',f_category:'category',f_model:'model',
+    f_purchaseDate:'purchaseDate',f_warrantyMonths:'warrantyMonths',f_store:'store',f_memo:'memo'};
+  Object.entries(map).forEach(([id,key])=>{ const el=document.getElementById(id); if(el) el.oninput=()=>formDraft[key]=el.value; });
+  $('#photoPick').onclick = (e)=>{ if(e.target.id==='photoRemove') return; $('#filePhoto').click(); };
+  $('#attachAdd').onclick = ()=>$('#fileManual').click();
+}
+async function refreshPhotoPreview(){
+  const img = document.getElementById('photoPreview');
+  const rm = document.getElementById('photoRemove');
+  if(rm) rm.onclick = (e)=>{ e.stopPropagation(); formDraft._photoBlob=null; formDraft._photoRemoved=true; renderForm(); };
+  if(!img) return;
+  if(formDraft._photoBlob){ img.src = URL.createObjectURL(formDraft._photoBlob); }
+  else if(formDraft.photoFileId && !formDraft._photoRemoved){ const u=await fileURL(formDraft.photoFileId); if(u) img.src=u; }
+}
+function renderAttachList(){
+  const wrap = $('#attachList'); if(!wrap) return;
+  const all = [...formDraft.manuals.map((m,i)=>({...m,_kind:'exist',_i:i})),
+               ...formDraft._newFiles.map((f,i)=>({name:f.name,type:f.type,size:f.size,_kind:'new',_i:i}))];
+  if(all.length===0){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = all.map(m=>{
+    const icon = fileIcon(m.type);
+    return `<div class="att-item"><div class="fi ${icon.cls}">${icon.txt}</div>
+      <div class="fn"><div class="a">${esc(m.name)}</div><div class="b">${m.type&&m.type.includes('pdf')?'PDF':'이미지'} · ${fmtSize(m.size)}</div></div>
+      <button class="x" data-kind="${m._kind}" data-i="${m._i}">✕</button></div>`;
+  }).join('');
+  wrap.querySelectorAll('.x').forEach(b=>b.onclick=()=>{
+    if(b.dataset.kind==='new') formDraft._newFiles.splice(+b.dataset.i,1);
+    else formDraft.manuals.splice(+b.dataset.i,1);
+    renderAttachList();
+  });
+}
+function fileIcon(type){
+  if(type && type.includes('pdf')) return {cls:'pdf',txt:'PDF'};
+  if(type && type.startsWith('image')) return {cls:'img',txt:'🖼'};
+  return {cls:'etc',txt:'📄'};
+}
+
+/* 사진 선택 */
+$('#filePhoto').onchange = async (e)=>{
+  const f = e.target.files[0]; e.target.value='';
+  if(!f) return;
+  toast('사진 처리 중…');
+  const blob = await compressImage(f);
+  formDraft._photoBlob = blob; formDraft._photoRemoved=false;
+  renderForm();
+};
+/* 설명서 파일 선택 */
+$('#fileManual').onchange = async (e)=>{
+  const files = [...e.target.files]; e.target.value='';
+  for(const f of files){
+    let blob = f;
+    if(f.type && f.type.startsWith('image')) blob = await compressImage(f, 1600, 900*1024);
+    formDraft._newFiles.push({name:f.name, type:f.type||'application/octet-stream', size:blob.size, blob});
+  }
+  renderAttachList();
+};
+
+async function saveForm(){
+  const d = formDraft;
+  if(!d.name || !d.name.trim()){ toast('제품명을 입력해 주세요'); return; }
+  $('#formSave').disabled = true;
+  try{
+    const isNew = !editingId;
+    const p = isNew ? {id:uid(), manuals:[]} : state.products.find(x=>x.id===editingId);
+    // 사진 처리
+    if(d._photoBlob){ const fid='f_'+uid(); await idbPut(fid,{blob:d._photoBlob,name:'photo.jpg',type:'image/jpeg'});
+      queueUpload(fid); if(p.photoFileId) queueDeleteFile(p.photoFileId); p.photoFileId=fid; }
+    else if(d._photoRemoved && p.photoFileId){ queueDeleteFile(p.photoFileId); await idbDel(p.photoFileId); p.photoFileId=null; }
+    // 기존 유지 설명서 + 신규 파일 저장
+    const keptManuals = d.manuals.map(m=>({fileId:m.fileId,name:m.name,type:m.type,size:m.size}));
+    // 삭제된 기존 설명서 파일 정리
+    const oldIds = (isNew?[]:(p.manuals||[])).map(m=>m.fileId);
+    const keptIds = keptManuals.map(m=>m.fileId);
+    for(const oid of oldIds){ if(!keptIds.includes(oid)){ queueDeleteFile(oid); await idbDel(oid); } }
+    const newManuals = [];
+    for(const nf of d._newFiles){ const fid='f_'+uid(); await idbPut(fid,{blob:nf.blob,name:nf.name,type:nf.type});
+      queueUpload(fid); newManuals.push({fileId:fid,name:nf.name,type:nf.type,size:nf.size}); }
+    p.manuals = [...keptManuals, ...newManuals];
+    p.name=d.name.trim(); p.brand=d.brand.trim(); p.category=d.category; p.model=d.model.trim();
+    p.purchaseDate=d.purchaseDate||''; p.warrantyMonths=d.warrantyMonths?Number(d.warrantyMonths):'';
+    p.store=d.store.trim(); p.memo=d.memo.trim(); p.deleted=false; p.updated=nowMs();
+    if(isNew) state.products.push(p);
+    saveState(); render();
+    uiBack();
+    toast(isNew?'제품을 추가했어요':'수정했어요');
+  }catch(err){ console.error(err); toast('저장 중 오류가 발생했어요'); }
+  finally{ $('#formSave').disabled=false; }
+}
+
+/* ============================================================
+   상세 보기
+   ============================================================ */
+async function openDetail(id){ detailId=id; await renderDetail(); openLayer('detail'); }
+async function renderDetail(){
+  const p = state.products.find(x=>x.id===detailId); if(!p) return;
+  const c = catOf(p.category); const w = warrantyInfo(p);
+  const wIcon = {ok:'🛡',warn:'⏳',danger:'⚠️',none:'❔'}[w.state];
+  const info = [];
+  if(p.model) info.push(['모델명',p.model]);
+  if(p.purchaseDate) info.push(['구매일',p.purchaseDate]);
+  if(p.warrantyMonths) info.push(['보증기간',p.warrantyMonths+'개월']);
+  if(p.store) info.push(['구매처',p.store]);
+  const docsHtml = (p.manuals&&p.manuals.length)
+    ? p.manuals.map((m,i)=>{ const ic=fileIcon(m.type);
+        return `<div class="doc-item" data-doc="${i}"><div class="di ${ic.cls}" data-docthumb="${m.type&&m.type.startsWith('image')?m.fileId:''}">${ic.txt}</div>
+          <div class="dn"><div class="a">${esc(m.name)}</div><div class="b">${m.type&&m.type.includes('pdf')?'PDF 문서':'이미지'} · ${fmtSize(m.size)}</div></div>
+          <div class="go">${m.type&&m.type.startsWith('image')?'🔍':'↗'}</div></div>`; }).join('')
+    : `<div style="color:var(--muted);font-size:13.5px;padding:6px 2px 10px">등록된 설명서 파일이 없어요.</div>`;
+  $('#detailBody').innerHTML = `
+    <div class="d-hero" id="dHero">${c.e}</div>
+    <div class="d-name">${esc(p.name)}</div>
+    <div class="d-brand">${esc([c.n,p.brand].filter(Boolean).join(' · '))}</div>
+    <div class="warranty-box ${w.state}"><div class="wi">${wIcon}</div>
+      <div class="wt"><div class="a">${w.label}</div><div class="b">${esc(w.desc)}</div></div></div>
+    ${info.length?`<div class="info-grid">${info.map(([k,v])=>`<div class="cell"><div class="k">${k}</div><div class="v">${esc(v)}</div></div>`).join('')}</div>`:''}
+    ${p.memo?`<div class="info-grid"><div class="cell full"><div class="k">메모</div><div class="v">${esc(p.memo)}</div></div></div>`:''}
+    <div class="sec-title">📄 설명서 파일 <span class="c">${p.manuals?p.manuals.length:0}</span></div>
+    ${docsHtml}
+    <div style="height:6px"></div>
+    <button class="btn ghost" id="dEdit" style="margin-top:6px">✎ 정보 수정</button>`;
+  // hero 사진
+  if(p.photoFileId){ const u=await fileURL(p.photoFileId); if(u) $('#dHero').innerHTML=`<img src="${u}" alt=""/>`; }
+  // 이미지 설명서 썸네일
+  $('#detailBody').querySelectorAll('[data-docthumb]').forEach(async el=>{ const fid=el.dataset.docthumb; if(!fid) return; const u=await fileURL(fid); if(u) el.innerHTML=`<img src="${u}" alt=""/>`; });
+  // 클릭 핸들러
+  $('#dEdit').onclick = ()=>swapLayer('form', ()=>openFormInline(p.id));
+  $('#detailBody').querySelectorAll('.doc-item').forEach(el=>el.onclick=()=>openDoc(p, +el.dataset.doc));
+}
+// swapLayer용: 폼을 히스토리 항목 유지한 채 준비
+function openFormInline(id){ editingId=id; const p=state.products.find(x=>x.id===id);
+  formDraft={...blankDraft(), name:p.name,brand:p.brand,category:p.category,model:p.model,
+    purchaseDate:p.purchaseDate||'',warrantyMonths:p.warrantyMonths||'',store:p.store||'',memo:p.memo||'',
+    photoFileId:p.photoFileId||null, manuals:(p.manuals||[]).map(m=>({...m}))};
+  $('#formTitle').textContent='제품 수정'; renderForm();
+}
+
+/* 설명서 열기 (이미지=갤러리 뷰어, PDF=iframe 뷰어) */
+async function openDoc(p, index){
+  const imgDocs = p.manuals.map((m,i)=>({...m,_i:i})).filter(m=>m.type&&m.type.startsWith('image'));
+  const doc = p.manuals[index];
+  if(doc.type && doc.type.startsWith('image')){
+    galleryList = imgDocs; galleryPos = imgDocs.findIndex(m=>m._i===index); if(galleryPos<0) galleryPos=0;
+    openLayer('viewer', ()=>{ $('#viewer').dataset.mode='img'; });
+    showGallery();
+  } else {
+    galleryList=[];
+    const u = await fileURL(doc.fileId);
+    if(!u){ toast('파일을 불러올 수 없어요'); return; }
+    openLayer('viewer', ()=>{ $('#viewer').dataset.mode='pdf'; });
+    $('#viewerName').textContent = doc.name;
+    $('#viewerStage').innerHTML = `<iframe src="${u}#toolbar=1" title="설명서"></iframe>`;
+    $('#viewerOpen').onclick = ()=>window.open(u,'_blank');
+  }
+}
+let galleryList=[], galleryPos=0;
+async function showGallery(){
+  const m = galleryList[galleryPos]; if(!m) return;
+  $('#viewerName').textContent = m.name;
+  const u = await fileURL(m.fileId);
+  const nav = galleryList.length>1
+    ? `<button class="viewer-nav prev" id="vPrev">‹</button><button class="viewer-nav next" id="vNext">›</button>`
+    : '';
+  $('#viewerStage').innerHTML = `<img src="${u||''}" alt=""/>${nav}<div class="viewer-count">${galleryPos+1} / ${galleryList.length}</div>`;
+  $('#viewerOpen').onclick = ()=>{ if(u) window.open(u,'_blank'); };
+  const prev=document.getElementById('vPrev'), next=document.getElementById('vNext');
+  if(prev) prev.onclick=()=>{ galleryPos=(galleryPos-1+galleryList.length)%galleryList.length; showGallery(); };
+  if(next) next.onclick=()=>{ galleryPos=(galleryPos+1)%galleryList.length; showGallery(); };
+  // 인접 이미지 미리 로딩
+  if(galleryList.length>1){ fileURL(galleryList[(galleryPos+1)%galleryList.length].fileId); fileURL(galleryList[(galleryPos-1+galleryList.length)%galleryList.length].fileId); }
+}
+function clearViewer(){ $('#viewerStage').innerHTML=''; }
+// 스와이프
+(function(){ let x0=null;
+  const stage=$('#viewerStage');
+  stage.addEventListener('touchstart',e=>{ x0=e.touches[0].clientX; },{passive:true});
+  stage.addEventListener('touchend',e=>{ if(x0===null||galleryList.length<2) return;
+    const dx=e.changedTouches[0].clientX-x0; if(Math.abs(dx)>50){ if(dx<0) galleryPos=(galleryPos+1)%galleryList.length; else galleryPos=(galleryPos-1+galleryList.length)%galleryList.length; showGallery(); } x0=null; });
+})();
+window.addEventListener('keydown',e=>{ if(!$('#viewer').classList.contains('on')||galleryList.length<2) return;
+  if(e.key==='ArrowRight'){ galleryPos=(galleryPos+1)%galleryList.length; showGallery(); }
+  if(e.key==='ArrowLeft'){ galleryPos=(galleryPos-1+galleryList.length)%galleryList.length; showGallery(); }
+});
+
+/* ============================================================
+   액션 시트 (제품 메뉴)
+   ============================================================ */
+function openActionSheet(items){
+  $('#actionGroup').innerHTML = items.map((it,i)=>`<div class="as-item ${it.danger?'danger':''}" data-i="${i}">${it.label}</div>`).join('');
+  $('#actionGroup').querySelectorAll('.as-item').forEach(el=>el.onclick=()=>{ const it=items[+el.dataset.i]; uiBack(); setTimeout(()=>it.onClick&&it.onClick(),120); });
+  openLayer('action');
+}
+function detailActions(){
+  const p = state.products.find(x=>x.id===detailId); if(!p) return;
+  openActionSheet([
+    {label:'✎ 정보 수정', onClick:()=>swapLayer('form', ()=>openFormInline(p.id))},
+    {label:'🗑 삭제', danger:true, onClick:()=>confirmDelete(p.id)},
+  ]);
+}
+function confirmDelete(id){
+  const p=state.products.find(x=>x.id===id); if(!p) return;
+  openActionSheet([{label:`🗑 "${p.name}" 삭제`, danger:true, onClick:()=>doDelete(id)}]);
+}
+async function doDelete(id){
+  const p = state.products.find(x=>x.id===id); if(!p) return;
+  // 파일 정리 (로컬 + 원격 큐)
+  if(p.photoFileId){ queueDeleteFile(p.photoFileId); await idbDel(p.photoFileId); }
+  for(const m of (p.manuals||[])){ queueDeleteFile(m.fileId); await idbDel(m.fileId); }
+  // 툼스톤 (동기화 전파용)
+  p.deleted=true; p.photoFileId=null; p.manuals=[]; p.updated=nowMs();
+  saveState();
+  // 상세가 열려 있으면 닫기
+  if(detailId===id && uiStack.some(l=>l.tag==='detail')) uiBack();
+  render(); toast('삭제했어요');
+}
+
+/* ============================================================
+   설정 + 백업 + 동기화
+   ============================================================ */
+function openSettings(){ renderSettings(); openLayer('settings'); }
+function renderSettings(){
+  const code = localStorage.getItem(LS_SYNC)||'';
+  const on = !!(code && FIREBASE_READY);
+  const total = liveProducts().length;
+  $('#settingsBody').innerHTML = `
+    <div class="set-sec">
+      <div class="h">데이터 백업</div>
+      <div class="set-row"><div class="rt">📤 JSON 내보내기</div>
+        <div class="rd">제품 정보와 목록을 파일로 저장합니다. (설명서 파일 원본은 기기/동기화에 보관)</div>
+        <button class="btn ghost" id="btnExport" style="margin-top:11px">${total}개 제품 내보내기</button></div>
+      <div class="set-row"><div class="rt">📥 JSON 가져오기</div>
+        <div class="rd">내보낸 파일을 불러와 병합합니다. (같은 제품은 최신 정보로 유지)</div>
+        <button class="btn ghost" id="btnImport" style="margin-top:11px">파일 선택</button></div>
+    </div>
+    <div class="set-sec">
+      <div class="h">기기 간 동기화</div>
+      <div class="set-row">
+        <div class="rt">🔗 연결 코드</div>
+        <div class="rd">여러 기기에 같은 연결 코드를 입력하면 제품·설명서가 자동으로 동기화됩니다. 코드가 곧 비밀번호이니 남이 추측하기 어렵게 10자 이상으로 정하세요.</div>
+        <input id="syncCodeInput" value="${esc(code)}" placeholder="예: mokjib-tv-9271-ab" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:11px;padding:12px;color:var(--text);font-size:15px;margin-top:11px;font-family:monospace"/>
+        <div style="display:flex;gap:9px;margin-top:10px">
+          <button class="btn ghost" id="syncGen" style="flex:0 0 40%">코드 생성</button>
+          <button class="btn primary" id="syncSave">연결</button>
+        </div>
+        <div class="sync-status ${on?'on':'off'}" style="margin-top:11px"><span class="dot"></span>${on?'동기화 켜짐':(code?'설정 필요':'로컬 저장만 사용 중')}</div>
+        ${!FIREBASE_READY?`<div class="rd" style="margin-top:10px;color:var(--warn)">⚙️ 동기화를 켜려면 Firebase 설정이 필요해요. 아래 안내를 참고하세요. 설정 전에도 앱의 모든 기능은 이 기기에서 정상 동작합니다.</div>`:''}
+      </div>
+      ${!FIREBASE_READY?`<div class="set-row"><div class="rt">Firebase 연결 안내</div>
+        <div class="rd" style="line-height:1.7">
+        1. <b>console.firebase.google.com</b> 접속 → <b>프로젝트 만들기</b><br>
+        2. 왼쪽 <b>빌드 → Firestore Database</b> 만들기(테스트 모드)<br>
+        3. 왼쪽 <b>빌드 → Storage</b> 시작하기<br>
+        4. <b>프로젝트 설정(⚙️) → 내 앱 → 웹(&lt;/&gt;)</b> 추가 → 표시되는 <code class="ck">firebaseConfig</code> 값 복사<br>
+        5. <b>index.html</b> 상단의 <code class="ck">FIREBASE_CONFIG</code> 에 붙여넣고 저장·배포<br>
+        6. 아래 규칙을 Firestore·Storage <b>규칙</b> 탭에 붙여넣기(코드 10자 이상만 접근 허용)
+        <div style="height:8px"></div>
+        <code class="ck" style="display:block;white-space:pre-wrap;padding:9px">Firestore: allow get, write: if spaceId.size() >= 10; allow list: if false;
+Storage: allow read,write: if spaceId.size() >= 10;</code>
+        </div></div>`:''}
+    </div>
+    <div class="set-sec">
+      <div class="h">앱 정보</div>
+      <div class="set-row"><div class="rt">메뉴얼함</div>
+        <div class="rd">전자제품 설명서·보증·구매 정보를 한 곳에 보관하는 오프라인 우선 PWA. 홈 화면에 추가하면 앱처럼 쓸 수 있어요.</div></div>
+    </div>`;
+  $('#btnExport').onclick = exportJSON;
+  $('#btnImport').onclick = ()=>$('#fileImport').click();
+  $('#syncGen').onclick = ()=>{ $('#syncCodeInput').value = 'mb-'+Math.random().toString(36).slice(2,8)+'-'+Math.random().toString(36).slice(2,8); };
+  $('#syncSave').onclick = ()=>{ const v=$('#syncCodeInput').value.trim(); if(v && v.length<10){ toast('연결 코드는 10자 이상으로 정해 주세요'); return; }
+    localStorage.setItem(LS_SYNC,v); toast(v?'연결 코드를 저장했어요':'연결을 해제했어요'); initSync(); renderSettings(); };
+}
+
+function exportJSON(){
+  const data = { app:'manualbox', version:1, exportedAt:new Date().toISOString(), products:state.products };
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const u = URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=u; a.download=`메뉴얼함_백업_${new Date().toISOString().slice(0,10)}.json`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(u),2000);
+  toast('백업 파일을 저장했어요');
+}
+$('#fileImport').onchange = async (e)=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{
+    const data = JSON.parse(await f.text());
+    const incoming = Array.isArray(data)?data:(data.products||[]);
+    if(!Array.isArray(incoming)){ toast('올바른 백업 파일이 아니에요'); return; }
+    mergeProducts(incoming); saveState(); render();
+    toast(`${incoming.length}개 항목을 병합했어요`);
+  }catch{ toast('파일을 읽을 수 없어요'); }
+};
+// id+updated 기준 병합 (덮어쓰기 아님)
+function mergeProducts(incoming){
+  const map = new Map(state.products.map(p=>[p.id,p]));
+  for(const inc of incoming){ if(!inc||!inc.id) continue;
+    const cur = map.get(inc.id);
+    if(!cur || (inc.updated||0) > (cur.updated||0)) map.set(inc.id, inc);
+  }
+  state.products = [...map.values()];
+}
+
+/* ============================================================
+   Firebase 동기화 (선택) — 연결 코드 모델
+   ============================================================ */
+// ↓↓↓ 동기화를 켜려면 Firebase 콘솔의 firebaseConfig 값을 여기에 붙여넣으세요 ↓↓↓
+const FIREBASE_CONFIG = {
+  apiKey: "", authDomain: "", projectId: "", storageBucket: "", messagingSenderId: "", appId: ""
+};
+const FIREBASE_READY = !!(FIREBASE_CONFIG && FIREBASE_CONFIG.projectId);
+
+let fb = null;                 // {db, storage, docRef, unsub}
+let syncPushTimer = null;
+let applyingRemote = false;
+let uploadQueue = [];          // 업로드 대기 fileId
+let deleteQueue = [];          // 원격 삭제 대기 fileId
+
+function queueUpload(fid){ if(FIREBASE_READY && localStorage.getItem(LS_SYNC)){ uploadQueue.push(fid); processUploads(); } }
+function queueDeleteFile(fid){ if(FIREBASE_READY && localStorage.getItem(LS_SYNC)){ deleteQueue.push(fid); processUploads(); } }
+
+async function initSync(){
+  // 기존 연결 해제
+  if(fb && fb.unsub){ try{ fb.unsub(); }catch{} }
+  fb = null;
+  const code = localStorage.getItem(LS_SYNC);
+  if(!FIREBASE_READY || !code) return;
+  try{
+    const [{initializeApp}, fs, st] = await Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js'),
+    ]);
+    const app = initializeApp(FIREBASE_CONFIG, 'mb-'+code.slice(0,6));
+    const db = fs.getFirestore(app); const storage = st.getStorage(app);
+    const docRef = fs.doc(db, 'spaces', code);
+    fb = {fs, st, db, storage, docRef, code};
+    // 수신
+    fb.unsub = fs.onSnapshot(docRef, snap=>{
+      const data = snap.data(); if(!data || !Array.isArray(data.products)) return;
+      applyingRemote = true;
+      const before = sig();
+      mergeProducts(data.products);
+      saveStateLocalOnly();
+      applyingRemote = false;
+      if(sig()!==before){ render(); backgroundCacheRemoteFiles(); }
+    });
+    // 최초 1회 업로드
+    scheduleSyncPush(); processUploads();
+    toast('동기화를 연결했어요');
+  }catch(err){ console.error('sync init 실패',err); toast('동기화 연결 실패 (오프라인이면 정상 동작)'); }
+}
+function sig(){ return JSON.stringify(state.products.map(p=>[p.id,p.updated,p.deleted?1:0])); }
+function saveStateLocalOnly(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state.products)); }catch{} }
+
+function scheduleSyncPush(){
+  if(!fb || applyingRemote) return;
+  clearTimeout(syncPushTimer);
+  syncPushTimer = setTimeout(pushSync, 700);
+}
+async function pushSync(){
+  if(!fb) return;
+  try{ await fb.fs.setDoc(fb.docRef, {products:state.products, updated:nowMs()}, {merge:false}); }
+  catch(err){ console.error('push 실패',err); }
+}
+async function processUploads(){
+  if(!fb) return;
+  while(uploadQueue.length){
+    const fid = uploadQueue.shift();
+    try{ const rec = await idbGet(fid); if(!rec||!rec.blob) continue;
+      const r = fb.st.ref(fb.storage, `spaces/${fb.code}/${fid}`);
+      await fb.st.uploadBytes(r, rec.blob, {contentType:rec.type||'application/octet-stream', customMetadata:{name:rec.name||''}});
+    }catch(err){ console.warn('업로드 실패',fid,err); }
+  }
+  while(deleteQueue.length){
+    const fid = deleteQueue.shift();
+    try{ const r = fb.st.ref(fb.storage, `spaces/${fb.code}/${fid}`); await fb.st.deleteObject(r); }catch{}
+  }
+}
+// 원격에만 있는 파일을 로컬 IndexedDB로 내려받아 캐시
+async function ensureRemoteFile(fid){
+  if(!fb) return;
+  try{
+    const r = fb.st.ref(fb.storage, `spaces/${fb.code}/${fid}`);
+    const url = await fb.st.getDownloadURL(r);
+    const resp = await fetch(url); const blob = await resp.blob();
+    const meta = await fb.st.getMetadata(r).catch(()=>({}));
+    await idbPut(fid,{blob, name:(meta.customMetadata&&meta.customMetadata.name)||fid, type:blob.type});
+  }catch(err){ /* 없으면 무시 */ }
+}
+async function backgroundCacheRemoteFiles(){
+  if(!fb) return;
+  const ids = [];
+  for(const p of liveProducts()){ if(p.photoFileId) ids.push(p.photoFileId); (p.manuals||[]).forEach(m=>ids.push(m.fileId)); }
+  for(const fid of ids){ const rec = await idbGet(fid); if(!rec||!rec.blob){ await ensureRemoteFile(fid); } }
+}
+
+/* ============================================================
+   토스트
+   ============================================================ */
+let toastTimer=null;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('on'),2200); }
+
+/* ============================================================
+   이벤트 바인딩
+   ============================================================ */
+$('#fab').onclick = ()=>openForm(null);
+$('#settingsBtn').onclick = openSettings;
+$('#formClose').onclick = uiBack;
+$('#formCancel').onclick = uiBack;
+$('#formSave').onclick = saveForm;
+$('#detailClose').onclick = uiBack;
+$('#detailMenu').onclick = detailActions;
+$('#settingsClose').onclick = uiBack;
+$('#actionCancel').onclick = uiBack;
+$('#viewerBack').onclick = uiBack;
+$('#overlay').onclick = uiBack;
+$('#searchInput').oninput = (e)=>{ filter.q=e.target.value.trim(); $('#searchClear').style.display=filter.q?'flex':'none'; render(); };
+$('#searchClear').onclick = ()=>{ $('#searchInput').value=''; filter.q=''; $('#searchClear').style.display='none'; render(); };
+
+/* ============================================================
+   PWA 서비스워커 — 자동 업데이트
+   ============================================================ */
+if('serviceWorker' in navigator){
+  if(navigator.serviceWorker.controller){
+    let reloaded=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(reloaded) return; reloaded=true; location.reload(); });
+  }
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('./sw.js').then(r=>r.update()).catch(()=>{}); });
+}
+
+/* ============================================================
+   시작
+   ============================================================ */
+loadState();
+render();
+initSync();
+</script>
+</body>
+</html>
