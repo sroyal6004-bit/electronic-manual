@@ -188,6 +188,9 @@
     .doc-item .di.etc{background:var(--bg3);color:var(--text2);}
     .doc-item .dn{flex:1;min-width:0;} .doc-item .dn .a{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .doc-item .dn .b{font-size:11.5px;color:var(--muted);margin-top:2px;}
+    .doc-item .doc-dl{width:38px;height:38px;flex:0 0 auto;border-radius:10px;background:var(--bg3);border:1px solid var(--border);
+      color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:17px;transition:.15s;}
+    .doc-item .doc-dl:active{transform:scale(.9);background:var(--border);}
     .doc-item .go{color:var(--muted);font-size:16px;}
 
     /* action sheet */
@@ -207,9 +210,13 @@
       color:#fff;gap:12px;background:rgba(0,0,0,.35);}
     .viewer-top .vn{font-size:14px;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .viewer-top .vb{width:40px;height:40px;border-radius:11px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:19px;color:#fff;}
-    .viewer-stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:pan-y;}
-    .viewer-stage img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none;}
+    .viewer-stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none;}
+    .viewer-stage img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none;will-change:transform;transform-origin:center center;transition:transform .18s ease-out;}
+    .viewer-stage.zoomed img{cursor:grab;}
     .viewer-stage iframe{width:100%;height:100%;border:none;background:#fff;}
+    .viewer-hint{position:absolute;bottom:calc(54px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);
+      background:rgba(0,0,0,.5);color:#fff;font-size:12px;padding:6px 13px;border-radius:99px;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+    .viewer-hint.on{opacity:1;}
     .viewer-nav{position:absolute;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;
       background:rgba(255,255,255,.14);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;}
     .viewer-nav.prev{left:12px;} .viewer-nav.next{right:12px;}
@@ -306,9 +313,11 @@
   <div class="viewer-top">
     <button class="vb" id="viewerBack">✕</button>
     <div class="vn" id="viewerName"></div>
+    <button class="vb" id="viewerDownload" title="다운로드">⬇</button>
     <button class="vb" id="viewerOpen" title="새 탭에서 열기">↗</button>
   </div>
   <div class="viewer-stage" id="viewerStage"></div>
+  <div class="viewer-hint" id="viewerHint">두 손가락으로 확대 · 두 번 탭 확대/축소</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -718,6 +727,7 @@ async function renderDetail(){
     ? p.manuals.map((m,i)=>{ const ic=fileIcon(m.type);
         return `<div class="doc-item" data-doc="${i}"><div class="di ${ic.cls}" data-docthumb="${m.type&&m.type.startsWith('image')?m.fileId:''}">${ic.txt}</div>
           <div class="dn"><div class="a">${esc(m.name)}</div><div class="b">${m.type&&m.type.includes('pdf')?'PDF 문서':'이미지'} · ${fmtSize(m.size)}</div></div>
+          <button class="doc-dl" data-dl="${i}" title="다운로드">⬇</button>
           <div class="go">${m.type&&m.type.startsWith('image')?'🔍':'↗'}</div></div>`; }).join('')
     : `<div style="color:var(--muted);font-size:13.5px;padding:6px 2px 10px">등록된 설명서 파일이 없어요.</div>`;
   $('#detailBody').innerHTML = `
@@ -739,6 +749,7 @@ async function renderDetail(){
   // 클릭 핸들러
   $('#dEdit').onclick = ()=>swapLayer('form', ()=>openFormInline(p.id));
   $('#detailBody').querySelectorAll('.doc-item').forEach(el=>el.onclick=()=>openDoc(p, +el.dataset.doc));
+  $('#detailBody').querySelectorAll('.doc-dl').forEach(el=>el.onclick=(e)=>{ e.stopPropagation(); const m=p.manuals[+el.dataset.dl]; downloadFile(m.fileId, m.name); });
 }
 // swapLayer용: 폼을 히스토리 항목 유지한 채 준비
 function openFormInline(id){ editingId=id; const p=state.products.find(x=>x.id===id);
@@ -748,7 +759,9 @@ function openFormInline(id){ editingId=id; const p=state.products.find(x=>x.id==
   $('#formTitle').textContent='제품 수정'; renderForm();
 }
 
-/* 설명서 열기 (이미지=갤러리 뷰어, PDF=iframe 뷰어) */
+/* 설명서 열기 (이미지=확대 가능한 갤러리 뷰어, PDF=iframe 뷰어) */
+let currentDoc = null;      // 뷰어에 열린 현재 파일 {fileId, name}
+let zoomHintShown = false;
 async function openDoc(p, index){
   const imgDocs = p.manuals.map((m,i)=>({...m,_i:i})).filter(m=>m.type&&m.type.startsWith('image'));
   const doc = p.manuals[index];
@@ -756,12 +769,15 @@ async function openDoc(p, index){
     galleryList = imgDocs; galleryPos = imgDocs.findIndex(m=>m._i===index); if(galleryPos<0) galleryPos=0;
     openLayer('viewer', ()=>{ $('#viewer').dataset.mode='img'; });
     showGallery();
+    if(!zoomHintShown){ zoomHintShown = true; showZoomHint(); }
   } else {
     galleryList=[];
     const u = await fileURL(doc.fileId);
     if(!u){ toast('파일을 불러올 수 없어요'); return; }
+    currentDoc = {fileId:doc.fileId, name:doc.name};
     openLayer('viewer', ()=>{ $('#viewer').dataset.mode='pdf'; });
     $('#viewerName').textContent = doc.name;
+    $('#viewerStage').classList.remove('zoomed');
     $('#viewerStage').innerHTML = `<iframe src="${u}#toolbar=1" title="설명서"></iframe>`;
     $('#viewerOpen').onclick = ()=>window.open(u,'_blank');
   }
@@ -769,12 +785,14 @@ async function openDoc(p, index){
 let galleryList=[], galleryPos=0;
 async function showGallery(){
   const m = galleryList[galleryPos]; if(!m) return;
+  currentDoc = {fileId:m.fileId, name:m.name};
   $('#viewerName').textContent = m.name;
   const u = await fileURL(m.fileId);
   const nav = galleryList.length>1
     ? `<button class="viewer-nav prev" id="vPrev">‹</button><button class="viewer-nav next" id="vNext">›</button>`
     : '';
   $('#viewerStage').innerHTML = `<img src="${u||''}" alt=""/>${nav}<div class="viewer-count">${galleryPos+1} / ${galleryList.length}</div>`;
+  vz.img = $('#viewerStage img'); resetZoom();
   $('#viewerOpen').onclick = ()=>{ if(u) window.open(u,'_blank'); };
   const prev=document.getElementById('vPrev'), next=document.getElementById('vNext');
   if(prev) prev.onclick=()=>{ galleryPos=(galleryPos-1+galleryList.length)%galleryList.length; showGallery(); };
@@ -782,15 +800,132 @@ async function showGallery(){
   // 인접 이미지 미리 로딩
   if(galleryList.length>1){ fileURL(galleryList[(galleryPos+1)%galleryList.length].fileId); fileURL(galleryList[(galleryPos-1+galleryList.length)%galleryList.length].fileId); }
 }
-function clearViewer(){ $('#viewerStage').innerHTML=''; }
-// 스와이프
-(function(){ let x0=null;
+function clearViewer(){ resetZoom(); $('#viewerStage').innerHTML=''; currentDoc=null; }
+
+let hintTimer=null;
+function showZoomHint(){ const h=$('#viewerHint'); if(!h) return; h.classList.add('on'); clearTimeout(hintTimer); hintTimer=setTimeout(()=>h.classList.remove('on'),2600); }
+
+/* 파일 다운로드 (이미지·PDF 공통) */
+async function downloadFile(fileId, name){
+  try{
+    let rec = await idbGet(fileId);
+    if(!rec || !rec.blob){ await ensureRemoteFile(fileId); rec = await idbGet(fileId); }
+    if(!rec || !rec.blob){ toast('파일을 불러올 수 없어요'); return; }
+    const u = URL.createObjectURL(rec.blob);
+    const a = document.createElement('a');
+    a.href = u; a.download = name || 'manual';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(u), 4000);
+    toast('다운로드를 시작했어요');
+  }catch(err){ console.error(err); toast('다운로드에 실패했어요'); }
+}
+
+/* ── 이미지 확대/축소·이동 (핀치·더블탭·휠·드래그) ── */
+const vz = {scale:1, tx:0, ty:0, img:null};
+function applyZoom(){
+  if(!vz.img) return;
+  vz.img.style.transform = `translate(${vz.tx}px,${vz.ty}px) scale(${vz.scale})`;
+  $('#viewerStage').classList.toggle('zoomed', vz.scale>1.01);
+}
+function resetZoom(){ vz.scale=1; vz.tx=0; vz.ty=0; if(vz.img) vz.img.style.transition=''; applyZoom(); }
+function clampPan(){
+  const stage=$('#viewerStage'), img=vz.img; if(!img) return;
+  const cw=stage.clientWidth, ch=stage.clientHeight;
+  const iw=img.clientWidth*vz.scale, ih=img.clientHeight*vz.scale;
+  const maxX=Math.max(0,(iw-cw)/2), maxY=Math.max(0,(ih-ch)/2);
+  vz.tx=Math.min(maxX,Math.max(-maxX,vz.tx));
+  vz.ty=Math.min(maxY,Math.max(-maxY,vz.ty));
+}
+// 초점(focal: 스테이지 중심 기준 좌표)을 유지하며 배율 변경
+function zoomTo(ns, fx, fy, animate){
+  if(!vz.img) return;
+  ns=Math.min(5,Math.max(1,ns));
+  const s0=vz.scale||1;
+  vz.tx = fx - (ns/s0)*(fx - vz.tx);
+  vz.ty = fy - (ns/s0)*(fy - vz.ty);
+  vz.scale = ns;
+  if(ns<=1.01){ vz.scale=1; vz.tx=0; vz.ty=0; }
+  vz.img.style.transition = animate ? 'transform .18s ease-out' : 'none';
+  clampPan(); applyZoom();
+}
+function focalFromClient(cx, cy){
+  const r=$('#viewerStage').getBoundingClientRect();
+  return {fx: cx - (r.left + r.width/2), fy: cy - (r.top + r.height/2)};
+}
+(function(){
   const stage=$('#viewerStage');
-  stage.addEventListener('touchstart',e=>{ x0=e.touches[0].clientX; },{passive:true});
-  stage.addEventListener('touchend',e=>{ if(x0===null||galleryList.length<2) return;
-    const dx=e.changedTouches[0].clientX-x0; if(Math.abs(dx)>50){ if(dx<0) galleryPos=(galleryPos+1)%galleryList.length; else galleryPos=(galleryPos-1+galleryList.length)%galleryList.length; showGallery(); } x0=null; });
+  let mode=null;   // 'pan' | 'pinch' | 'swipe'
+  let startX=0, startY=0, startTx=0, startTy=0, pinchDist0=0, pinchScale0=1, pinchFocal={fx:0,fy:0}, lastTap=0;
+  const isImg=()=>$('#viewer').dataset.mode==='img';
+  const dist=t=>Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
+
+  stage.addEventListener('touchstart',e=>{
+    if(!isImg()) return;
+    if(e.touches.length===2){
+      mode='pinch'; e.preventDefault();
+      pinchDist0=dist(e.touches); pinchScale0=vz.scale;
+      const mx=(e.touches[0].clientX+e.touches[1].clientX)/2, my=(e.touches[0].clientY+e.touches[1].clientY)/2;
+      pinchFocal=focalFromClient(mx,my);
+      if(vz.img) vz.img.style.transition='none';
+    } else if(e.touches.length===1){
+      startX=e.touches[0].clientX; startY=e.touches[0].clientY; startTx=vz.tx; startTy=vz.ty;
+      mode = vz.scale>1 ? 'pan' : 'swipe';
+      if(vz.img) vz.img.style.transition='none';
+    }
+  },{passive:false});
+
+  stage.addEventListener('touchmove',e=>{
+    if(!isImg()) return;
+    if(mode==='pinch' && e.touches.length===2){
+      e.preventDefault();
+      const ns=pinchScale0 * (dist(e.touches)/(pinchDist0||1));
+      zoomTo(ns, pinchFocal.fx, pinchFocal.fy, false);
+    } else if(mode==='pan' && e.touches.length===1){
+      e.preventDefault();
+      vz.tx=startTx+(e.touches[0].clientX-startX); vz.ty=startTy+(e.touches[0].clientY-startY);
+      clampPan(); applyZoom();
+    }
+  },{passive:false});
+
+  stage.addEventListener('touchend',e=>{
+    if(!isImg()) return;
+    if(mode==='pinch'){ if(vz.scale<=1.01) resetZoom(); mode=null; return; }
+    if(mode==='swipe' && vz.scale<=1.01 && galleryList.length>1){
+      const dx=e.changedTouches[0].clientX-startX, dy=e.changedTouches[0].clientY-startY;
+      if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)){
+        if(dx<0) galleryPos=(galleryPos+1)%galleryList.length; else galleryPos=(galleryPos-1+galleryList.length)%galleryList.length;
+        showGallery(); mode=null; return;
+      }
+    }
+    const moved=Math.abs(e.changedTouches[0].clientX-startX)+Math.abs(e.changedTouches[0].clientY-startY);
+    if(moved<12){   // 더블탭 확대/축소
+      const now=Date.now();
+      if(now-lastTap<300){
+        const {fx,fy}=focalFromClient(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+        if(vz.scale>1) zoomTo(1,0,0,true); else zoomTo(2.5,fx,fy,true);
+        lastTap=0;
+      } else lastTap=now;
+    }
+    mode=null;
+  },{passive:false});
+
+  // 데스크탑: 휠 확대, 더블클릭 토글, 드래그 이동
+  stage.addEventListener('wheel',e=>{ if(!isImg()) return; e.preventDefault();
+    const {fx,fy}=focalFromClient(e.clientX,e.clientY);
+    zoomTo(vz.scale*(e.deltaY<0?1.15:0.87), fx, fy, false);
+  },{passive:false});
+  stage.addEventListener('dblclick',e=>{ if(!isImg()) return;
+    const {fx,fy}=focalFromClient(e.clientX,e.clientY);
+    if(vz.scale>1) zoomTo(1,0,0,true); else zoomTo(2.5,fx,fy,true);
+  });
+  let mDown=false,mX=0,mY=0,mTx=0,mTy=0;
+  stage.addEventListener('mousedown',e=>{ if(!isImg()||vz.scale<=1) return; mDown=true; mX=e.clientX; mY=e.clientY; mTx=vz.tx; mTy=vz.ty; if(vz.img) vz.img.style.transition='none'; e.preventDefault(); });
+  window.addEventListener('mousemove',e=>{ if(!mDown) return; vz.tx=mTx+(e.clientX-mX); vz.ty=mTy+(e.clientY-mY); clampPan(); applyZoom(); });
+  window.addEventListener('mouseup',()=>{ mDown=false; });
 })();
-window.addEventListener('keydown',e=>{ if(!$('#viewer').classList.contains('on')||galleryList.length<2) return;
+window.addEventListener('keydown',e=>{ if(!$('#viewer').classList.contains('on')) return;
+  if(e.key==='Escape' && vz.scale>1){ zoomTo(1,0,0,true); return; }
+  if($('#viewer').dataset.mode!=='img' || galleryList.length<2 || vz.scale>1.01) return;
   if(e.key==='ArrowRight'){ galleryPos=(galleryPos+1)%galleryList.length; showGallery(); }
   if(e.key==='ArrowLeft'){ galleryPos=(galleryPos-1+galleryList.length)%galleryList.length; showGallery(); }
 });
@@ -1024,6 +1159,7 @@ $('#detailMenu').onclick = detailActions;
 $('#settingsClose').onclick = uiBack;
 $('#actionCancel').onclick = uiBack;
 $('#viewerBack').onclick = uiBack;
+$('#viewerDownload').onclick = ()=>{ if(currentDoc) downloadFile(currentDoc.fileId, currentDoc.name); };
 $('#overlay').onclick = uiBack;
 $('#searchInput').oninput = (e)=>{ filter.q=e.target.value.trim(); $('#searchClear').style.display=filter.q?'flex':'none'; render(); };
 $('#searchClear').onclick = ()=>{ $('#searchInput').value=''; filter.q=''; $('#searchClear').style.display='none'; render(); };
