@@ -993,6 +993,11 @@ function renderSettings(){
         <div class="sync-status ${on?'on':'off'}" style="margin-top:11px"><span class="dot"></span>${on?'동기화 켜짐':(code?'설정 필요':'로컬 저장만 사용 중')}</div>
         ${!FIREBASE_READY?`<div class="rd" style="margin-top:10px;color:var(--warn)">⚙️ 동기화를 켜려면 Firebase 설정이 필요해요. 아래 안내를 참고하세요. 설정 전에도 앱의 모든 기능은 이 기기에서 정상 동작합니다.</div>`:''}
       </div>
+      ${FIREBASE_READY?`<div class="set-row"><div class="rt">🔧 동기화 상태 점검</div>
+        <div class="rd">이 기기에서 Firestore·Storage 읽기/쓰기가 실제로 되는지 테스트해, 사진이 안 되는 정확한 원인을 찾아줍니다.</div>
+        <button class="btn ghost" id="syncDiagBtn" style="margin-top:11px">지금 점검</button>
+        <pre id="syncDiag" style="display:none;white-space:pre-wrap;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:11px;margin-top:10px;font-size:12.5px;line-height:1.65;color:var(--text2);font-family:monospace;overflow-x:auto"></pre>
+      </div>`:''}
       ${!FIREBASE_READY?`<div class="set-row"><div class="rt">Firebase 연결 안내</div>
         <div class="rd" style="line-height:1.7">
         1. <b>console.firebase.google.com</b> 접속 → <b>프로젝트 만들기</b><br>
@@ -1016,6 +1021,45 @@ Storage: allow read,write: if spaceId.size() >= 10;</code>
   $('#syncGen').onclick = ()=>{ $('#syncCodeInput').value = 'mb-'+Math.random().toString(36).slice(2,8)+'-'+Math.random().toString(36).slice(2,8); };
   $('#syncSave').onclick = ()=>{ const v=$('#syncCodeInput').value.trim(); if(v && v.length<10){ toast('연결 코드는 10자 이상으로 정해 주세요'); return; }
     localStorage.setItem(LS_SYNC,v); toast(v?'연결 코드를 저장했어요':'연결을 해제했어요'); initSync(); renderSettings(); };
+  const _dg=$('#syncDiagBtn'); if(_dg) _dg.onclick=runSyncDiag;
+}
+
+/* 동기화 실제 읽기/쓰기 테스트 — 사진 동기화 실패 원인 진단 */
+async function runSyncDiag(){
+  const out=$('#syncDiag'); if(out){ out.style.display='block'; out.textContent='점검 중…'; }
+  let first=true;
+  const log=(s)=>{ if(!out) return; out.textContent=(first?'':out.textContent+'\n')+s; first=false; };
+  const code=(localStorage.getItem(LS_SYNC)||'').trim();
+  if(!FIREBASE_READY){ log('❌ Firebase 설정(config)이 없습니다'); return; }
+  log('• 프로젝트: '+FIREBASE_CONFIG.projectId);
+  log('• 버킷: '+FIREBASE_CONFIG.storageBucket);
+  if(!code){ log('❌ 연결 코드 없음 — 먼저 코드를 연결하세요'); return; }
+  log('• 연결 코드 길이: '+code.length+'자 '+(code.length>=10?'(OK)':'(❌ 10자 미만 → 규칙에 막힘)'));
+  try{ if(!fb) await initSync(); }catch{}
+  if(!fb){ log('❌ Firebase 초기화 실패 (네트워크/설정 확인)'); return; }
+  // Firestore 쓰기
+  try{ await fb.fs.setDoc(fb.fs.doc(fb.db,'spaces',code), {__diag:nowMs()}, {merge:true});
+    log('✅ Firestore 쓰기 성공 (텍스트 동기화 정상)'); }
+  catch(e){ log('❌ Firestore 실패: '+(e.code||e.message)); }
+  // Storage 쓰기 → 읽기
+  const path=`spaces/${code}/__diag_${Math.random().toString(36).slice(2,7)}`;
+  const ref=fb.st.ref(fb.storage, path);
+  try{
+    await fb.st.uploadBytes(ref, new Blob([new Uint8Array([1,2,3,4])],{type:'application/octet-stream'}));
+    log('✅ Storage 업로드(write) 성공');
+    try{
+      const url=await fb.st.getDownloadURL(ref);
+      const resp=await fetch(url);
+      log(resp.ok?'✅ Storage 다운로드(read) 성공 → 사진 동기화 조건 정상':'❌ 다운로드 HTTP '+resp.status);
+    }catch(e){ const c=(e.code||e.message||'')+''; log('❌ Storage 다운로드(read) 실패: '+c);
+      if(/unauthorized|permission/i.test(c)) log('   → Storage read 규칙 미게시/오류');
+      else log('   → CORS 또는 버킷 도메인 문제 가능'); }
+    try{ await fb.st.deleteObject(ref); }catch{}
+  }catch(e){ const c=(e.code||e.message||'')+''; log('❌ Storage 업로드(write) 실패: '+c);
+    if(/unauthorized|permission/i.test(c)) log('   → Storage write 규칙 확인·게시 필요');
+    else if(/bucket|not-found|404|does not exist/i.test(c)) log('   → Storage 미활성 또는 버킷 불일치');
+    else if(/retry|network|cors/i.test(c)) log('   → 네트워크/CORS'); }
+  log('— 점검 끝 —');
 }
 
 function exportJSON(){
