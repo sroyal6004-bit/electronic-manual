@@ -392,10 +392,21 @@ async function fileURL(id){
   if(!id) return null;
   if(urlCache.has(id)) return urlCache.get(id);
   try{
-    const rec = await idbGet(id);
-    if(!rec || !rec.blob){ await ensureRemoteFile(id); const r2=await idbGet(id); if(!r2||!r2.blob) return null; const u=URL.createObjectURL(r2.blob); urlCache.set(id,u); return u; }
-    const u = URL.createObjectURL(rec.blob); urlCache.set(id,u); return u;
+    let rec = await idbGet(id);
+    if(!rec || !rec.blob){ await ensureRemoteFile(id); rec = await idbGet(id); }
+    if(rec && rec.blob){ const u = URL.createObjectURL(rec.blob); urlCache.set(id,u); return u; }
+    // 폴백: 블롭 캐싱 실패(CORS 등)여도 원격 다운로드 URL로 표시는 가능
+    // (<img>/<iframe> src는 CORS 영향을 안 받음 → 사진·PDF가 그대로 보임)
+    const direct = await remoteURL(id);
+    if(direct){ urlCache.set(id, direct); return direct; }
+    return null;
   }catch{ return null; }
+}
+// 원격 파일의 직접 다운로드 URL (표시용)
+async function remoteURL(id){
+  if(!fb) return null;
+  try{ return await fb.st.getDownloadURL(fb.st.ref(fb.storage, `spaces/${fb.code}/${id}`)); }
+  catch{ return null; }
 }
 
 /* ============================================================
@@ -810,13 +821,18 @@ async function downloadFile(fileId, name){
   try{
     let rec = await idbGet(fileId);
     if(!rec || !rec.blob){ await ensureRemoteFile(fileId); rec = await idbGet(fileId); }
-    if(!rec || !rec.blob){ toast('파일을 불러올 수 없어요'); return; }
-    const u = URL.createObjectURL(rec.blob);
-    const a = document.createElement('a');
-    a.href = u; a.download = name || 'manual';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(u), 4000);
-    toast('다운로드를 시작했어요');
+    if(rec && rec.blob){
+      const u = URL.createObjectURL(rec.blob);
+      const a = document.createElement('a');
+      a.href = u; a.download = name || 'manual';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(u), 4000);
+      toast('다운로드를 시작했어요'); return;
+    }
+    // 폴백: 로컬에 없고 CORS로 못 받는 경우 → 원격 URL을 새 탭으로 열어 저장 유도
+    const direct = await remoteURL(fileId);
+    if(direct){ window.open(direct,'_blank'); toast('새 탭에서 열었어요 — 길게 눌러 저장하세요'); return; }
+    toast('파일을 불러올 수 없어요');
   }catch(err){ console.error(err); toast('다운로드에 실패했어요'); }
 }
 
@@ -1196,9 +1212,8 @@ async function ensureRemoteFile(fid){
     const meta = await fb.st.getMetadata(r).catch(()=>({}));
     await idbPut(fid,{blob, name:(meta.customMetadata&&meta.customMetadata.name)||fid, type:blob.type});
   }catch(err){
-    // object-not-found = 아직 상대가 업로드 안 함(정상). 그 외(권한/CORS 등)만 1회 안내
-    const c=(err&&(err.code||err.message)||'').toString();
-    if(!/object-not-found|404/i.test(c) && !uploadErrorNotified){ uploadErrorNotified=true; toast('⚠️ 상대 기기의 사진을 못 받아왔어요 — Storage 규칙/설정 확인'); }
+    // 다운로드 실패는 조용히 넘어감 — fileURL이 원격 URL로 표시 폴백하므로 사진은 보인다.
+    // (오프라인 캐시만 안 되며, 정확한 진단은 설정의 '동기화 상태 점검'에서 확인)
   }
 }
 async function backgroundCacheRemoteFiles(){
