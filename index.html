@@ -1065,6 +1065,16 @@ let syncPushTimer = null;
 let applyingRemote = false;
 let uploadQueue = [];          // 업로드 대기 fileId
 let deleteQueue = [];          // 원격 삭제 대기 fileId
+let uploadErrorNotified = false;
+let uploadOkOnce = false;      // Storage 업로드가 한 번이라도 성공했는지
+function storageHint(err){
+  const c = (err && (err.code||err.message) || '').toString();
+  if(/unauthorized|unauthenticated|permission/i.test(c)) return '⚠️ 사진 업로드 거부됨 — Firebase Storage 보안 규칙을 확인하세요';
+  if(/quota/i.test(c)) return '⚠️ Storage 저장 용량이 초과됐어요';
+  if(/bucket|project-not-found|not.?found|404/i.test(c)) return '⚠️ Firebase Storage가 아직 설정되지 않았어요(활성화 필요)';
+  if(/retry-limit|network|cors|failed to fetch/i.test(c)) return '⚠️ 사진 동기화 네트워크 오류 — 잠시 후 다시 시도하세요';
+  return '⚠️ 사진 동기화 실패 — Firebase Storage 설정/규칙을 확인하세요';
+}
 
 function queueUpload(fid){ if(FIREBASE_READY && localStorage.getItem(LS_SYNC)){ uploadQueue.push(fid); processUploads(); } }
 function queueDeleteFile(fid){ if(FIREBASE_READY && localStorage.getItem(LS_SYNC)){ deleteQueue.push(fid); processUploads(); } }
@@ -1073,6 +1083,7 @@ async function initSync(){
   // 기존 연결 해제
   if(fb && fb.unsub){ try{ fb.unsub(); }catch{} }
   fb = null;
+  uploadErrorNotified = false;
   const code = localStorage.getItem(LS_SYNC);
   if(!FIREBASE_READY || !code) return;
   try{
@@ -1120,7 +1131,10 @@ async function processUploads(){
     try{ const rec = await idbGet(fid); if(!rec||!rec.blob) continue;
       const r = fb.st.ref(fb.storage, `spaces/${fb.code}/${fid}`);
       await fb.st.uploadBytes(r, rec.blob, {contentType:rec.type||'application/octet-stream', customMetadata:{name:rec.name||''}});
-    }catch(err){ console.warn('업로드 실패',fid,err); }
+      uploadOkOnce = true; uploadErrorNotified = false;   // 성공 → 다음 실패 시 다시 알림
+    }catch(err){ console.warn('업로드 실패',fid,err);
+      if(!uploadErrorNotified){ uploadErrorNotified = true; toast(storageHint(err)); }
+    }
   }
   while(deleteQueue.length){
     const fid = deleteQueue.shift();
@@ -1133,10 +1147,15 @@ async function ensureRemoteFile(fid){
   try{
     const r = fb.st.ref(fb.storage, `spaces/${fb.code}/${fid}`);
     const url = await fb.st.getDownloadURL(r);
-    const resp = await fetch(url); const blob = await resp.blob();
+    const resp = await fetch(url); if(!resp.ok) throw new Error('http '+resp.status);
+    const blob = await resp.blob();
     const meta = await fb.st.getMetadata(r).catch(()=>({}));
     await idbPut(fid,{blob, name:(meta.customMetadata&&meta.customMetadata.name)||fid, type:blob.type});
-  }catch(err){ /* 없으면 무시 */ }
+  }catch(err){
+    // object-not-found = 아직 상대가 업로드 안 함(정상). 그 외(권한/CORS 등)만 1회 안내
+    const c=(err&&(err.code||err.message)||'').toString();
+    if(!/object-not-found|404/i.test(c) && !uploadErrorNotified){ uploadErrorNotified=true; toast('⚠️ 상대 기기의 사진을 못 받아왔어요 — Storage 규칙/설정 확인'); }
+  }
 }
 async function backgroundCacheRemoteFiles(){
   if(!fb) return;
