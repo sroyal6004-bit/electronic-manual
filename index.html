@@ -452,6 +452,39 @@ async function compressImage(file, maxDim=1280, targetBytes=520*1024){
   }catch{ return file; }
 }
 function canvasBlob(cv,q){ return new Promise(r=>cv.toBlob(r,'image/jpeg',q)); }
+// 작은 썸네일 생성 (목록·스트립용, ~256px)
+async function makeThumb(blob, dim=256, q=0.5){
+  try{
+    const bmp = await createImageBitmap(blob, {imageOrientation:'from-image'});
+    let {width:w, height:h} = bmp;
+    const scale = Math.min(1, dim/Math.max(w,h));
+    w=Math.max(1,Math.round(w*scale)); h=Math.max(1,Math.round(h*scale));
+    const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+    cv.getContext('2d').drawImage(bmp,0,0,w,h); bmp.close && bmp.close();
+    return await canvasBlob(cv,q);
+  }catch{ return null; }
+}
+const thumbId = fid => fid + '_t';
+// 썸네일 URL 로더 — 로컬→원격→(없으면)원본에서 생성·캐시. 목록/스트립/작은 미리보기용.
+async function thumbURL(fileId){
+  if(!fileId) return null;
+  const tid = thumbId(fileId);
+  if(urlCache.has(tid)) return urlCache.get(tid);
+  try{
+    let rec = await idbGet(tid);
+    if(!rec || !rec.blob){ await ensureRemoteFile(tid); rec = await idbGet(tid); }
+    if(rec && rec.blob){ const u=URL.createObjectURL(rec.blob); urlCache.set(tid,u); return u; }
+    // 원격 썸네일이 없으면(구버전 사진) 원본에서 만들어 캐시·업로드
+    const full = await idbGet(fileId);
+    let src = full && full.blob;
+    if(!src){ const fu = await fileURL(fileId); if(fu){ try{ src = await (await fetch(fu)).blob(); }catch{} } }
+    if(src){ const tb = await makeThumb(src); if(tb){ await idbPut(tid,{blob:tb,name:'thumb.jpg',type:'image/jpeg'}); queueUpload(tid);
+      const u=URL.createObjectURL(tb); urlCache.set(tid,u); return u; } }
+    // 폴백: 원격 원본 URL
+    const direct = await remoteURL(tid); if(direct){ urlCache.set(tid,direct); return direct; }
+    return await fileURL(fileId);
+  }catch{ return await fileURL(fileId); }
+}
 
 /* ============================================================
    보증 계산
@@ -546,7 +579,7 @@ function lazyThumbs(){
       if(!e.isIntersecting) return;
       const el = e.target; thumbObserver.unobserve(el);
       const id = el.dataset.thumb; if(!id) return;
-      const u = await fileURL(id); if(u){ el.innerHTML = `<img src="${u}" alt=""/>`; }
+      const u = await thumbURL(id); if(u){ el.innerHTML = `<img src="${u}" alt=""/>`; }
     });
   }, {rootMargin:'120px'});
   document.querySelectorAll('.thumb[data-thumb]').forEach(el=>{ if(el.dataset.thumb) thumbObserver.observe(el); });
@@ -676,7 +709,7 @@ function renderPhotoGrid(){
   formDraft.photos.forEach(async (ph,i)=>{
     const img = wrap.querySelector(`img[data-pi="${i}"]`); if(!img) return;
     if(ph._new && ph.blob){ img.src = URL.createObjectURL(ph.blob); }
-    else if(ph.fileId){ const u = await fileURL(ph.fileId); if(u) img.src=u; }
+    else if(ph.fileId){ const u = await thumbURL(ph.fileId); if(u) img.src=u; }
   });
   $('#photoAdd').onclick = ()=>$('#filePhoto').click();
   wrap.querySelectorAll('.rm').forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); formDraft.photos.splice(+b.dataset.rm,1); renderPhotoGrid(); });
@@ -755,11 +788,13 @@ async function saveForm(){
     const finalPhotos = [];
     for(const ph of d.photos){
       if(ph._new && ph.blob){ const fid='f_'+uid(); await idbPut(fid,{blob:ph.blob,name:ph.name||'photo.jpg',type:'image/jpeg'});
-        queueUpload(fid); finalPhotos.push({fileId:fid,name:ph.name||'photo.jpg',type:'image/jpeg',size:ph.size||0}); }
+        queueUpload(fid);
+        const tb=await makeThumb(ph.blob); if(tb){ await idbPut(thumbId(fid),{blob:tb,name:'thumb.jpg',type:'image/jpeg'}); queueUpload(thumbId(fid)); }
+        finalPhotos.push({fileId:fid,name:ph.name||'photo.jpg',type:'image/jpeg',size:ph.size||0}); }
       else if(ph.fileId){ finalPhotos.push({fileId:ph.fileId,name:ph.name||'사진',type:ph.type||'image/jpeg',size:ph.size||0}); }
     }
     const keptPhotoIds = finalPhotos.map(x=>x.fileId);
-    for(const oid of prevPhotoIds){ if(oid && !keptPhotoIds.includes(oid)){ queueDeleteFile(oid); await idbDel(oid); } }
+    for(const oid of prevPhotoIds){ if(oid && !keptPhotoIds.includes(oid)){ queueDeleteFile(oid); await idbDel(oid); queueDeleteFile(thumbId(oid)); await idbDel(thumbId(oid)); } }
     p.photos = finalPhotos;
     p.photoFileId = finalPhotos.length ? finalPhotos[0].fileId : null;   // 대표(구버전 호환)
     // 기존 유지 설명서 + 신규 파일 저장
@@ -767,10 +802,12 @@ async function saveForm(){
     // 삭제된 기존 설명서 파일 정리
     const oldIds = (isNew?[]:(p.manuals||[])).map(m=>m.fileId);
     const keptIds = keptManuals.map(m=>m.fileId);
-    for(const oid of oldIds){ if(!keptIds.includes(oid)){ queueDeleteFile(oid); await idbDel(oid); } }
+    for(const oid of oldIds){ if(!keptIds.includes(oid)){ queueDeleteFile(oid); await idbDel(oid); queueDeleteFile(thumbId(oid)); await idbDel(thumbId(oid)); } }
     const newManuals = [];
     for(const nf of d._newFiles){ const fid='f_'+uid(); await idbPut(fid,{blob:nf.blob,name:nf.name,type:nf.type});
-      queueUpload(fid); newManuals.push({fileId:fid,name:nf.name,type:nf.type,size:nf.size}); }
+      queueUpload(fid);
+      if(nf.type && nf.type.startsWith('image')){ const tb=await makeThumb(nf.blob); if(tb){ await idbPut(thumbId(fid),{blob:tb,name:'thumb.jpg',type:'image/jpeg'}); queueUpload(thumbId(fid)); } }
+      newManuals.push({fileId:fid,name:nf.name,type:nf.type,size:nf.size}); }
     p.manuals = [...keptManuals, ...newManuals];
     p.name=d.name.trim(); p.brand=d.brand.trim(); p.category=d.category; p.model=d.model.trim();
     p.purchaseDate=d.purchaseDate||''; p.warrantyMonths=d.warrantyMonths?Number(d.warrantyMonths):'';
@@ -823,9 +860,9 @@ async function renderDetail(){
   if(photos.length){ const u=await fileURL(photos[0].fileId); const badge=photos.length>1?`<span class="cnt">📷 ${photos.length}</span>`:''; if(u) $('#dHero').innerHTML=`<img src="${u}" alt=""/>${badge}`;
     $('#dHero').onclick = ()=>openPhotoViewer(p,0); $('#dHero').style.cursor='zoom-in'; }
   // 사진 스트립 썸네일
-  $('#detailBody').querySelectorAll('[data-ps]').forEach(async el=>{ const idx=+el.dataset.ps; const u=await fileURL(photos[idx].fileId); if(u) el.innerHTML=`<img src="${u}" alt=""/>`; el.onclick=()=>openPhotoViewer(p,idx); });
+  $('#detailBody').querySelectorAll('[data-ps]').forEach(async el=>{ const idx=+el.dataset.ps; const u=await thumbURL(photos[idx].fileId); if(u) el.innerHTML=`<img src="${u}" alt=""/>`; el.onclick=()=>openPhotoViewer(p,idx); });
   // 이미지 설명서 썸네일
-  $('#detailBody').querySelectorAll('[data-docthumb]').forEach(async el=>{ const fid=el.dataset.docthumb; if(!fid) return; const u=await fileURL(fid); if(u) el.innerHTML=`<img src="${u}" alt=""/>`; });
+  $('#detailBody').querySelectorAll('[data-docthumb]').forEach(async el=>{ const fid=el.dataset.docthumb; if(!fid) return; const u=await thumbURL(fid); if(u) el.innerHTML=`<img src="${u}" alt=""/>`; });
   // 클릭 핸들러
   $('#dEdit').onclick = ()=>swapLayer('form', ()=>openFormInline(p.id));
   $('#detailBody').querySelectorAll('.doc-item').forEach(el=>el.onclick=()=>openDoc(p, +el.dataset.doc));
@@ -1044,9 +1081,9 @@ function confirmDelete(id){
 }
 async function doDelete(id){
   const p = state.products.find(x=>x.id===id); if(!p) return;
-  // 파일 정리 (로컬 + 원격 큐) — 사진 여러 장 + 설명서
-  for(const ph of productPhotos(p)){ if(ph.fileId){ queueDeleteFile(ph.fileId); await idbDel(ph.fileId); } }
-  for(const m of (p.manuals||[])){ queueDeleteFile(m.fileId); await idbDel(m.fileId); }
+  // 파일 정리 (로컬 + 원격 큐) — 사진 여러 장 + 설명서 (+썸네일)
+  for(const ph of productPhotos(p)){ if(ph.fileId){ queueDeleteFile(ph.fileId); await idbDel(ph.fileId); queueDeleteFile(thumbId(ph.fileId)); await idbDel(thumbId(ph.fileId)); } }
+  for(const m of (p.manuals||[])){ queueDeleteFile(m.fileId); await idbDel(m.fileId); if(m.type&&m.type.startsWith('image')){ queueDeleteFile(thumbId(m.fileId)); await idbDel(thumbId(m.fileId)); } }
   // 툼스톤 (동기화 전파용)
   p.deleted=true; p.photoFileId=null; p.photos=[]; p.manuals=[]; p.updated=nowMs();
   saveState();
@@ -1295,9 +1332,15 @@ async function ensureRemoteFile(fid){
 }
 async function backgroundCacheRemoteFiles(){
   if(!fb) return;
-  const ids = [];
-  for(const p of liveProducts()){ productPhotos(p).forEach(ph=>ph.fileId&&ids.push(ph.fileId)); (p.manuals||[]).forEach(m=>ids.push(m.fileId)); }
-  for(const fid of ids){ const rec = await idbGet(fid); if(!rec||!rec.blob){ await ensureRemoteFile(fid); } }
+  // 목록·스트립이 빨리 뜨도록 '썸네일'을 우선 캐시(작음). 원본은 확대할 때 받는다.
+  const thumbTargets = [], fullTargets = [];
+  for(const p of liveProducts()){
+    productPhotos(p).forEach(ph=>{ if(ph.fileId){ thumbTargets.push(ph.fileId); } });
+    (p.manuals||[]).forEach(m=>{ if(m.type&&m.type.startsWith('image')) thumbTargets.push(m.fileId); else fullTargets.push(m.fileId); });
+  }
+  for(const fid of thumbTargets){ const tid=thumbId(fid); const rec=await idbGet(tid); if(!rec||!rec.blob){ await ensureRemoteFile(tid); } }
+  // PDF 등 비이미지 설명서는 원본을 백그라운드 캐시(있을 때만)
+  for(const fid of fullTargets){ const rec=await idbGet(fid); if(!rec||!rec.blob){ await ensureRemoteFile(fid); } }
 }
 
 /* ============================================================
