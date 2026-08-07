@@ -24,14 +24,14 @@
       --danger:#f47272; --danger-bg:rgba(244,114,114,.14);
       --sans:'Noto Sans KR',system-ui,-apple-system,sans-serif;
       --radius:18px;
-      --maxw:480px;   /* 데스크탑에서도 모바일 폭으로 가운데 정렬 */
+      --maxw:640px;   /* 데스크탑에서도 적당한 폭으로 가운데 정렬 */
     }
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
     html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overscroll-behavior:none;-webkit-text-size-adjust:100%;}
     body{font-size:15px;line-height:1.5;}
     #app{min-height:100vh;padding-bottom:calc(96px + env(safe-area-inset-bottom,0px));max-width:var(--maxw);margin:0 auto;}
     /* 데스크탑: 컬럼 밖 배경을 살짝 구분 */
-    @media (min-width:520px){ body{background:#070b14;} #app{background:var(--bg);box-shadow:0 0 0 1px var(--border);min-height:100vh;} }
+    @media (min-width:680px){ body{background:#070b14;} #app{background:var(--bg);box-shadow:0 0 0 1px var(--border);min-height:100vh;} }
     button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
     input,select,textarea{font-family:inherit;-webkit-appearance:none;appearance:none;}
     ::-webkit-scrollbar{width:0;height:0;}
