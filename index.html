@@ -237,6 +237,11 @@
     .viewer-stage img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none;will-change:transform;transform-origin:center center;transition:transform .18s ease-out;}
     .viewer-stage.zoomed img{cursor:grab;}
     .viewer-stage iframe{width:100%;height:100%;border:none;background:#fff;}
+    /* PDF 렌더(모바일 iframe 미지원 회피) */
+    .viewer[data-mode="pdf"] .viewer-stage{touch-action:auto;}
+    .viewer-stage .pdf-scroll{position:absolute;inset:0;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;padding:8px 0 24px;background:#111;}
+    .viewer-stage .pdf-page{display:block;margin:0 auto 10px;background:#fff;max-width:100%;box-shadow:0 2px 12px rgba(0,0,0,.55);border-radius:2px;}
+    .viewer-stage .pdf-msg{color:#9aa4b2;font-size:14px;padding:24px;text-align:center;}
     .viewer-hint{position:absolute;bottom:calc(54px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);
       background:rgba(0,0,0,.5);color:#fff;font-size:12px;padding:6px 13px;border-radius:99px;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
     .viewer-hint.on{opacity:1;}
@@ -902,15 +907,68 @@ async function openDoc(p, index){
     if(!zoomHintShown){ zoomHintShown = true; showZoomHint(); }
   } else {
     galleryList=[];
-    const u = await fileURL(doc.fileId);
-    if(!u){ toast('파일을 불러올 수 없어요'); return; }
     currentDoc = {fileId:doc.fileId, name:doc.name};
     openLayer('viewer', ()=>{ $('#viewer').dataset.mode='pdf'; });
     $('#viewerName').textContent = doc.name;
     $('#viewerStage').classList.remove('zoomed');
-    $('#viewerStage').innerHTML = `<iframe src="${u}#toolbar=1" title="설명서"></iframe>`;
-    $('#viewerOpen').onclick = ()=>window.open(u,'_blank');
+    $('#viewerStage').innerHTML = `<div class="pdf-msg" id="pdfMsg">📄 문서 여는 중…</div>`;
+    const blob = await fileBlob(doc.fileId);
+    if(!blob){ $('#viewerStage').innerHTML = `<div class="pdf-msg">파일을 불러올 수 없어요</div>`; toast('파일을 불러올 수 없어요'); return; }
+    const openUrl = URL.createObjectURL(blob);
+    $('#viewerOpen').onclick = ()=>window.open(openUrl,'_blank');
+    const isPdf = (doc.type&&doc.type.includes('pdf')) || /\.pdf$/i.test(doc.name||'');
+    if(isPdf) await renderPdf(blob, openUrl, doc.name);
+    else { $('#viewerStage').innerHTML = `<iframe src="${openUrl}" title="설명서"></iframe>`; }  // 기타 파일은 브라우저에 위임
   }
+}
+// 파일 blob 얻기 (로컬 → 원격 다운로드 → 원격 URL fetch)
+async function fileBlob(fileId){
+  let rec = await idbGet(fileId); if(rec&&rec.blob) return rec.blob;
+  await ensureRemoteFile(fileId); rec = await idbGet(fileId); if(rec&&rec.blob) return rec.blob;
+  const direct = await remoteURL(fileId); if(direct){ try{ return await (await fetch(direct)).blob(); }catch{} }
+  return null;
+}
+// PDF.js 동적 로드 (CDN, 서비스워커가 캐시 → 이후 오프라인 가능)
+let pdfLibPromise = null;
+function loadPdfLib(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if(pdfLibPromise) return pdfLibPromise;
+  const base='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174';
+  pdfLibPromise = new Promise((res,rej)=>{
+    const s=document.createElement('script'); s.src=base+'/pdf.min.js';
+    s.onload=()=>{ try{ window.pdfjsLib.GlobalWorkerOptions.workerSrc=base+'/pdf.worker.min.js'; res(window.pdfjsLib); }catch(e){ rej(e); } };
+    s.onerror=()=>rej(new Error('pdf.js load failed'));
+    document.head.appendChild(s);
+  });
+  return pdfLibPromise;
+}
+// PDF를 앱 안에서 페이지별 canvas로 직접 렌더 (모바일 iframe 미지원 회피)
+async function renderPdf(blob, openUrl, name){
+  const stage=$('#viewerStage');
+  let lib;
+  try{ lib = await loadPdfLib(); }
+  catch{ // CDN 못 받으면(첫 오프라인 등) iframe 폴백
+    stage.innerHTML = `<iframe src="${openUrl}" title="설명서"></iframe>`; return; }
+  try{
+    const buf = await blob.arrayBuffer();
+    const pdf = await lib.getDocument({data:buf}).promise;
+    const wrap=document.createElement('div'); wrap.className='pdf-scroll';
+    stage.innerHTML=''; stage.appendChild(wrap);
+    const dpr = Math.min(window.devicePixelRatio||1, 2);
+    const cw = Math.min(stage.clientWidth-16, 900);
+    for(let i=1;i<=pdf.numPages;i++){
+      const page = await pdf.getPage(i);
+      const vp1 = page.getViewport({scale:1});
+      const cssScale = cw/vp1.width;
+      const vp = page.getViewport({scale: cssScale*dpr});
+      const canvas=document.createElement('canvas'); canvas.className='pdf-page';
+      canvas.width=Math.floor(vp.width); canvas.height=Math.floor(vp.height);
+      canvas.style.width=cw+'px'; canvas.style.height=Math.floor(vp1.height*cssScale)+'px';
+      wrap.appendChild(canvas);
+      await page.render({canvasContext:canvas.getContext('2d'), viewport:vp}).promise;
+    }
+    if(!pdf.numPages){ stage.innerHTML=`<iframe src="${openUrl}" title="설명서"></iframe>`; }
+  }catch(e){ console.error('pdf render 실패',e); stage.innerHTML = `<iframe src="${openUrl}" title="설명서"></iframe>`; }
 }
 let galleryList=[], galleryPos=0;
 async function showGallery(){
