@@ -124,7 +124,7 @@
     .field input,.field select,.field textarea{width:100%;background:var(--bg3);border:1px solid var(--border);
       border-radius:12px;padding:12px 13px;color:var(--text);font-size:15px;}
     .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent);}
-    .field textarea{resize:none;min-height:70px;line-height:1.5;}
+    .field textarea{resize:vertical;min-height:130px;max-height:60vh;overflow-y:auto;line-height:1.55;}
     .field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%237c8aa5' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
       background-repeat:no-repeat;background-position:right 14px center;padding-right:34px;}
     .row2{display:flex;gap:11px;} .row2>*{flex:1;}
@@ -707,9 +707,12 @@ function renderForm(){
 function bindFormFields(){
   const map = {f_name:'name',f_brand:'brand',f_category:'category',f_model:'model',
     f_purchaseDate:'purchaseDate',f_warrantyMonths:'warrantyMonths',f_store:'store',f_memo:'memo'};
-  Object.entries(map).forEach(([id,key])=>{ const el=document.getElementById(id); if(el) el.oninput=()=>formDraft[key]=el.value; });
+  Object.entries(map).forEach(([id,key])=>{ const el=document.getElementById(id); if(el) el.oninput=()=>{ formDraft[key]=el.value; if(id==='f_memo') autosize(el); }; });
   $('#attachAdd').onclick = ()=>$('#fileManual').click();
+  autosize($('#f_memo'));   // 열 때 기존 메모 길이에 맞춰 높이 조정
 }
+// 메모 textarea를 내용 길이에 맞게 자동 확장 (최대 60vh, 넘으면 스크롤)
+function autosize(el){ if(!el) return; el.style.height='auto'; const max=Math.round(window.innerHeight*0.6); el.style.height=Math.min(el.scrollHeight+2, max)+'px'; }
 function renderPhotoGrid(){
   const wrap = $('#photoGrid'); if(!wrap) return;
   const cells = formDraft.photos.map((ph,i)=>`<div class="photo-cell"><img data-pi="${i}" alt=""/>
